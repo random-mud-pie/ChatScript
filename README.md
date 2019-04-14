@@ -1,6 +1,6 @@
 # Forked
 
-This repo is a fork of (ChatScript)[https://github.com/ChatScript/ChatScript] with updated bots. It is also tightly coupled with (docker-chatscript)[https://github.com/random-mud-pie/docker-chatscript].
+This repo is a fork of [ChatScript](https://github.com/ChatScript/ChatScript) with updated bots. It is also tightly coupled with [docker-chatscript](https://github.com/random-mud-pie/docker-chatscript).
 
 # ChatScript
 Natural Language tool/dialog manager

@@ -57,6 +57,7 @@
 #define BUILD0					0x00100000		// comes from build0 data (marker on functions, concepts, topics)
 #define BUILD1					0x00200000		// comes from build1 data
 #define HAS_EXCLUDE				0x00400000		// concept/topic has keywords to exclude
+#define TABBED                  HAS_EXCLUDE     // table macro is tabbed
 #define BUILD2					0x00800000		// comes from dynamic build layer data
 #define FUNCTION_NAME			0x01000000 	//   name of a ^function  (has non-zero ->x.codeIndex if system, else is user but can be patternmacro,outputmacro, or plan) only applicable to ^ words
 #define CONCEPT					0x02000000	// topic or concept has been read via a definition
@@ -142,7 +143,7 @@ unsigned int GETTYPERESTRICTION(MEANING x);
 #define TENSEFIELD 2
 #define PLURALFIELD 3
 
-#define Index2Word(n) (dictionaryBase+n)
+#define Index2Word(n) (dictionaryBase + (size_t)n)
 #define Word2Index(D) ((uint64) (D-dictionaryBase))
 #define GetMeanings(D) ((MEANING*) Index2Heap(D->meanings))
 MEANING GetMeaning(WORDP D, int index);
@@ -189,8 +190,8 @@ extern uint64 adverbFormat;
 extern MEANING posMeanings[64];
 extern MEANING sysMeanings[64];
 extern bool xbuildDictionary;
-extern unsigned int propertyRedefines;	// property changes on locked dictionary entries
-extern unsigned int flagsRedefines;		// systemflags changes on locked dictionary entries
+extern HEAPLINK propertyRedefines;	// property changes on locked dictionary entries
+extern HEAPLINK flagsRedefines;		// systemflags changes on locked dictionary entries
 
 extern FACT* factLocked;
 extern char* stringLocked;
@@ -235,7 +236,7 @@ bool TraceHierarchyTest(int x);
 void WriteDictDetailsBeforeLayer(int layer);
 WORDP StoreWord(char* word, uint64 properties = 0);
 WORDP StoreWord(char* word, uint64 properties, uint64 flags);
-WORDP FindWord(const char* word, int len = 0,uint64 caseAllowed = STANDARD_LOOKUP);
+WORDP FindWord(const char* word, unsigned int len = 0,uint64 caseAllowed = STANDARD_LOOKUP);
 WORDP FullStore(char* word, uint64 properties, uint64 flags);
 unsigned char BitCount(uint64 n);
 void ClearVolleyWordMaps();
@@ -319,6 +320,7 @@ void WalkDictionary(DICTIONARY_FUNCTION func,uint64 data = 0);
 char* FindCanonical(char* word, int i, bool nonew = false);
 void VerifyEntries(WORDP D,uint64 junk);
 void NoteLanguage();
+void ClearWhereAt(int where);
 
 bool IsHelper(char* word);
 bool IsFutureHelper(char* word);

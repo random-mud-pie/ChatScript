@@ -181,7 +181,10 @@ static char* SpellCheck( int i)
     char* word = wordStarts[i];
 	if (!*word) return NULL;
 	if (!stricmp(word,loginID) || !stricmp(word,computerID)) return word; //   dont change his/our name ever
-
+    int start = derivationIndex[i] >> 8;
+    int end = derivationIndex[i] & 0x00ff;
+    if (start != end || wordStarts[i] != derivationSentence[start])
+        return word; // got here by a spellcheck so trust it.
 	size_t len = strlen(word);
 	if (len > 2 && word[len-2] == '\'') return word;	// dont do anything with ' words
 
@@ -204,11 +207,11 @@ static char* SpellCheck( int i)
 		strcpy(tmpword,word);
 		strcat(tmpword,wordStarts[i+1]);
 		breakAt = SplitWord(tmpword,i);
-		if (breakAt > 0) // replace words with the dual pair
+		if (breakAt > 0  && stricmp(tmpword+breakAt,wordStarts[i+1])) // replace words with the dual pair
 		{
 			WORDP D = FindWord(tmpword,breakAt,PRIMARY_CASE_ALLOWED);
 			tokens[1] = D->word;
-			tokens[2] = tmp+breakAt;
+			tokens[2] = tmpword +breakAt;
 			ReplaceWords("SplitWords",i,2,2,tokens);
 			fixedSpell = true;
 			return NULL;
@@ -356,6 +359,7 @@ bool SpellCheckSentence()
 	for (int i = startWord; i <= wordCount; ++i)
 	{
 		char* word = wordStarts[i];
+        if (strlen(word) > (MAX_WORD_SIZE - 100)) continue;
         char hyphenword[MAX_WORD_SIZE];
         if (i != wordCount) // merge 2 adj words w hyphen if can, even though one or both are legal words
         {
@@ -369,7 +373,7 @@ bool SpellCheckSentence()
                 strcpy(hyphenword + len++, "-");
                 strcpy(hyphenword + len, wordStarts[i + 1]);
                 WORDP XX = FindWord(hyphenword);
-                if (XX)
+                if (XX && !IS_NEW_WORD(XX))
                 {
                     tokens[1] = XX->word;
                     ReplaceWords("merge to hyphenword", i, 2, 1, tokens);
@@ -458,6 +462,18 @@ bool SpellCheckSentence()
 		//  dont spell check email or other things with @ or . in them
 		if (strchr(word, '@') || strchr(word, '&') || strchr(word, '$')) continue;
 
+		//  dont spell check hashtags
+		if (word[0] == '#' && !IsDigit(word[1])) {
+			bool validHash = true;
+			for (int i = 1; i < size; ++i) {
+				if (!IsAlphaUTF8OrDigit(word[i]) && word[i] != '_') {
+					validHash = false;
+					break;
+				}
+			}
+			if (validHash) continue;
+		}
+
 		// dont spell check names of json objects or arrays
 		if (!strnicmp(word, "ja-", 3) || !strnicmp(word, "jo-", 3)) continue;
 
@@ -471,33 +487,36 @@ bool SpellCheckSentence()
 		// dont spell check abbreviations with dots, e.g. p.m.
 		char* dot = strchr(word, '.');
 		if (dot && FindWord(word, 0)) continue;
+        
+        // dont spellcheck model numbers
+        if (IsModelNumber(word)) continue;
 
 		// split conjoined sentetence Missouri.Fix  or Missouri..Fix
 		// but dont split float values like 0.5%
         if (dot && dot != word && dot[1] && !IsDigit(dot[1]))
 		{
 			*dot = 0;
-			WORDP X = FindWord(word, 0);
+			// don't spell correct if this looks like a filename
 			char* rest = dot + 1;
-			while (rest[1] == '.') ++rest; // swallow all excess dots
-			WORDP Y = FindWord(rest + 1, 0);
-			if (X && Y) // we recognize the words
-			{
-				char oper[10];
-				tokens[1] = word;
-				tokens[2] = oper;
-				*oper = '.';
-				oper[1] = 0;
-				tokens[3] = rest + 1;
-				ReplaceWords("dotsentence", i, 1, 3, tokens);
-				fixedSpell = true;
-				*dot = '.';  // restore the dot so the original is still in derivationSentence
-				continue;
+			if (!IsFileExtension(rest)) {
+				WORDP X = FindWord(word, 0);
+				while (rest[1] == '.') ++rest; // swallow all excess dots
+				WORDP Y = FindWord(rest + 1, 0);
+				if (X && Y) // we recognize the words
+				{
+					char oper[10];
+					tokens[1] = word;
+					tokens[2] = oper;
+					*oper = '.';
+					oper[1] = 0;
+					tokens[3] = rest + 1;
+					ReplaceWords("dotsentence", i, 1, 3, tokens);
+					fixedSpell = true;
+					*dot = '.';  // restore the dot so the original is still in derivationSentence
+					continue;
+				}
 			}
-			else 
-			{
-				*dot = '.';  // restore the dot
-			}
+			*dot = '.';  // restore the dot
 		}
 
 		//  dont spell check things with . in them
@@ -1494,14 +1513,14 @@ void CheckWord(char* originalWord, WORDINFO& realWordData, WORDP D, WORDP* choic
 
     if (val <= min) // as good or better
     {
-       if (spellTrace) Log(STDTRACELOG, "    found: %s %d\r\n", D->word, val);
+       if (spellTrace) Log(STDUSERLOG, "    found: %s %d\r\n", D->word, val);
        if (val < min)
        {
-            if (trace == TRACE_SPELLING) Log(STDTRACELOG, (char*)"    Better: %s against %s value: %d\r\n", D->word, originalWord, val);
+            if (trace == TRACE_SPELLING) Log(STDUSERLOG, (char*)"    Better: %s against %s value: %d\r\n", D->word, originalWord, val);
             index = 0;
             min = val;
         }
-        else if (val == min && trace == TRACE_SPELLING) Log(STDTRACELOG, (char*)"    Equal: %s against %s value: %d\r\n", D->word, originalWord, val);
+        else if (val == min && trace == TRACE_SPELLING) Log(STDUSERLOG, (char*)"    Equal: %s against %s value: %d\r\n", D->word, originalWord, val);
 
         if (!(D->internalBits & BEEN_HERE))
         {
@@ -1513,7 +1532,7 @@ void CheckWord(char* originalWord, WORDINFO& realWordData, WORDP D, WORDP* choic
 
 char* SpellFix(char* originalWord,int start,uint64 posflags)
 {
-	if (spellTrace) Log(STDTRACELOG,"Correcting: %s:\r\n", originalWord);
+	if (spellTrace) Log(STDUSERLOG,"Correcting: %s:\r\n", originalWord);
 	multichoice = false;
     char word[MAX_WORD_SIZE];
     MakeLowerCopy(word, originalWord);
@@ -1530,7 +1549,7 @@ char* SpellFix(char* originalWord,int start,uint64 posflags)
 	bool hasUnderscore = (strchr(originalWord,'_')) ? true : false;
 	bool isUpper = IsUpperCase(originalWord[0]);
 	if (IsUpperCase(originalWord[1])) isUpper = false;	// not if all caps
-	if (trace == TRACE_SPELLING) Log(STDTRACELOG,(char*)"Spell: %s\r\n",originalWord);
+	if (trace == TRACE_SPELLING) Log(STDUSERLOG,(char*)"Spell: %s\r\n",originalWord);
 
 	//   Priority is to a word that looks like what the user typed, because the user probably would have noticed if it didnt and changed it. So add/delete  has priority over tranform
     WORDP choices[4000];
@@ -1563,7 +1582,7 @@ char* SpellFix(char* originalWord,int start,uint64 posflags)
 	{
 		if (i >= 3) break;
 		MEANING offset = lengthLists[realWordData.charlen + range[i]];
-		if (trace == TRACE_SPELLING) Log(STDTRACELOG,(char*)"\r\n  Begin offset %d\r\n",i);
+		if (trace == TRACE_SPELLING) Log(STDUSERLOG,(char*)"\r\n  Begin offset %d\r\n",i);
 		while (offset)
 		{
 			D = Meaning2Word(offset);
@@ -1600,7 +1619,7 @@ char* SpellFix(char* originalWord,int start,uint64 posflags)
 	for (unsigned int j = 0; j < index; ++j) RemoveInternalFlag(choices[j],BEEN_HERE);
     if (index == 1) 
 	{
-		if (trace == TRACE_SPELLING) Log(STDTRACELOG,(char*)"    Single best spell: %s\r\n",choices[0]->word);
+		if (trace == TRACE_SPELLING) Log(STDUSERLOG,(char*)"    Single best spell: %s\r\n",choices[0]->word);
 		return choices[0]->word;	// pick the one
 	}
     for (unsigned int j = 0; j < index; ++j) 
@@ -1629,7 +1648,7 @@ char* SpellFix(char* originalWord,int start,uint64 posflags)
 	if (bestGuessindex) 
 	{
         if (bestGuessindex > 1) multichoice = true;
-		if (trace == TRACE_SPELLING) Log(STDTRACELOG,(char*)"    Pick spell: %s\r\n",bestGuess[0]->word);
+		if (trace == TRACE_SPELLING) Log(STDUSERLOG,(char*)"    Pick spell: %s\r\n",bestGuess[0]->word);
 		return bestGuess[0]->word; 
 	}
 	return NULL;

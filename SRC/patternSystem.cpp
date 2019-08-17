@@ -23,16 +23,24 @@
 #define FREEMODE_BIT			0X00020000
 #define QUOTE_BIT				0X00080000
 #define NOTNOT_BIT				0X00400000
+
+#define GAPSTART                0X000000FF
+#define GAPLIMIT                0X0000FF00
+#define GAPLIMITSHIFT 8
+#define GAP_SHIFT 16
+#define GAP_SLOT 0x0000ffff      // std wildcard gaps
+#define SPECIFIC_SLOT 0x1f000000 // words or bracketed items
+#define SPECIFIC_SHIFT 24
+
 #define WILDGAP					0X20000000  // start of gap is 0x000000ff, limit of gap is 0x0000ff00  
 #define WILDMEMORIZEGAP			0X40000000  // start of gap is 0x000000ff, limit of gap is 0x0000ff00  
 #define WILDMEMORIZESPECIFIC	0X80000000  //   while 0x1f0000 is wildcard index to use
-#define GAP_SHIFT 16
-#define GAP_SLOT 0x0000ffff
-#define SPECIFIC_SLOT 0x1f000000
-#define SPECIFIC_SHIFT 24
-#define GAPLIMITSHIFT 8
+// bottom 16 bits hold start and range of a gap (if there is one) and bits WILDGAP or MEMORIZEWILDGAP will be on
+// and slot to use is 5 bits below
+// BUT it we are memorizing specific, it must use separate slot index because _*~4 _() can exist
 int patternDepth = 0;
 bool matching = false;
+bool patternRetry = false;
 bool deeptrace = false;
 static char* returnPtr = NULL;
 char* patternchoice = NULL;
@@ -59,11 +67,11 @@ void ShowMatchResult(FunctionResult result, char* rule, char* label)
             Log(STDTRACETABLOG, (char*)"  Wildcards: ");
             for (int i = 0; i < wildcardIndex; ++i)
             {
-                if (*wildcardOriginalText[i]) Log(STDTRACELOG, (char*)"_%d=%s / %s (%d-%d)  ", i, wildcardOriginalText[i], wildcardCanonicalText[i], wildcardPosition[i] & 0x0000ffff, wildcardPosition[i] >> 16);
-                else Log(STDTRACELOG, (char*)"_%d=null (%d-%d)  ", i, wildcardPosition[i] & 0x0000ffff, wildcardPosition[i] >> 16);
+                if (*wildcardOriginalText[i]) Log(STDUSERLOG, (char*)"_%d=%s / %s (%d-%d)  ", i, wildcardOriginalText[i], wildcardCanonicalText[i], wildcardPosition[i] & 0x0000ffff, wildcardPosition[i] >> 16);
+                else Log(STDUSERLOG, (char*)"_%d=null (%d-%d)  ", i, wildcardPosition[i] & 0x0000ffff, wildcardPosition[i] >> 16);
             }
         }
-        Log(STDTRACELOG, (char*)"\r\n");
+        Log(STDUSERLOG, (char*)"\r\n");
     }
 }
 
@@ -235,12 +243,12 @@ static bool MatchTest(bool reverse, WORDP D, int start, char* op, char* compare,
 {
     if (start == INFINITE_MATCH) start = (reverse) ? (wordCount + 1) : 0;
     uppercaseFind = 0;
-    if (deeptrace) Log(STDTRACELOG, (char*)" matchtesting:%s ", D->word);
+    if (deeptrace) Log(STDUSERLOG, (char*)" matchtesting:%s ", D->word);
     while (GetNextSpot(D, start, actualStart, actualEnd, reverse, legalgap)) // find a spot later where token is in sentence
     {
-        if (deeptrace) Log(STDTRACELOG, (char*)" matchtest:%s %d-%d ", D->word, actualStart, actualEnd);
+        if (deeptrace) Log(STDUSERLOG, (char*)" matchtest:%s %d-%d ", D->word, actualStart, actualEnd);
         if (exact && (start + 1) != actualStart) return false;	// we are doing _0?~hello or whatever. Must be on the mark
-        if (deeptrace) Log(STDTRACELOG, (char*)" matchtest:ok ");
+        if (deeptrace) Log(STDUSERLOG, (char*)" matchtest:ok ");
         start = actualStart; // where to try next if fail on test
         if (op) // we have a test to perform
         {
@@ -248,7 +256,7 @@ static bool MatchTest(bool reverse, WORDP D, int start, char* op, char* compare,
             if (D->word && (IsAlphaUTF8(*D->word) || D->internalBits & UTF8)) word = D->word; //   implicitly all normal words are relation tested as given
             else word = quote ? wordStarts[actualStart] : wordCanonical[actualStart];
             int id;
-            if (deeptrace) Log(STDTRACELOG, (char*)" matchtest:optest ");
+            if (deeptrace) Log(STDUSERLOG, (char*)" matchtest:optest ");
             char* word1val = AllocateStack(NULL, MAX_WORD_SIZE);
             char* word2val = AllocateStack(NULL, MAX_WORD_SIZE);
             FunctionResult res = HandleRelation(word, op, compare, false, id, word1val, word2val);
@@ -275,7 +283,7 @@ static bool MatchTest(bool reverse, WORDP D, int start, char* op, char* compare,
             if (!stricmp(D->word, word)) return true;
         }
     }
-    if (deeptrace) Log(STDTRACELOG, (char*)" matchtest:%s failed ", D->word);
+    if (deeptrace) Log(STDUSERLOG, (char*)" matchtest:%s failed ", D->word);
     return false;
 }
 
@@ -380,7 +388,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
     patternDepth = depth;
     int wildgap = 0;
     if (wildcardSelector &  WILDGAP && *kind == '{')
-        wildgap = ((wildcardSelector >> GAPLIMITSHIFT) & 0x000000ff) + 1;
+        wildgap = ((wildcardSelector & GAPLIMIT) >> GAPLIMITSHIFT) + 1;
     memset(&matchedBits[depth], 0, sizeof(uint64) * 4);  // nesting level zone of bit matches
     char word[MAX_WORD_SIZE];
     char* orig = ptr;
@@ -399,6 +407,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
     int beginmatch = -1; // for ( ) where did we actually start matching
     bool success = false;
     char* priorPiece = NULL;
+    if (!depth) patternRetry = false;
     int at;
     int slidingStart = startposition;
     firstMatched = -1; //   ()  should return spot it started (firstMatched) so caller has ability to bind any wild card before it
@@ -422,19 +431,19 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
         nextTokenStart = SkipWhitespace(nextTokenStart + 1);	// ignore blanks after if token is a simple single thing like !
         char c = *word;
         bool foundaword = false;
-        if (deeptrace) Log(STDTRACELOG, (char*)" token:%s ", word);
+        if (deeptrace) Log(STDUSERLOG, (char*)" token:%s ", word);
         switch (c)
         {
             // prefixs on tokens
         case '!': //   NOT condition - not a stand-alone token, attached to another token
             ptr = nextTokenStart;
             statusBits |= NOT_BIT;
-            if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDTRACELOG, (char*)"!");
+            if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDUSERLOG, (char*)"!");
             if (*ptr == '!')
             {
                 ptr = SkipWhitespace(nextTokenStart + 1);
                 statusBits |= NOTNOT_BIT;
-                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDTRACELOG, (char*)"!");
+                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDUSERLOG, (char*)"!");
             }
             continue;
         case '\'': //   single quoted item    
@@ -451,7 +460,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
             {
                 statusBits |= QUOTE_BIT;
                 ptr = nextTokenStart;
-                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDTRACELOG, (char*)"'");
+                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDUSERLOG, (char*)"'");
                 continue;
             }
         case '_':
@@ -471,7 +480,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
             else if ((positionEnd - positionStart) == 1 && reverse) positionStart = positionEnd; // If currently matched a phrase, move to end. 
 
                                                                                                  //  aba or ~dat or **ar*
-            if (ptr[0] != '*' || ptr[1] == '*') // wildcard word
+            if (ptr[0] != '*' || ptr[1] == '*') // wildcard word or () [] {}, not gap
             {
                 wildcardSelector &= -1 ^ SPECIFIC_SLOT;
                 wildcardSelector |= (WILDMEMORIZESPECIFIC + (wildcardIndex << SPECIFIC_SHIFT));
@@ -488,9 +497,15 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 wildcardSelector |= (WILDMEMORIZEGAP + (wildcardIndex << GAP_SHIFT)); // variable gap
             }
             SetWildCardNull(); // dummy match to reserve place
-            if (trace & TRACE_PATTERN  && CheckTopicTrace() && bidirectional != 2) Log(STDTRACELOG, (char*)"_");
+            if (trace & TRACE_PATTERN  && CheckTopicTrace() && bidirectional != 2) Log(STDUSERLOG, (char*)"_");
             continue;
-        case '@': // factset ref
+        case '@': // factset ref or @_2+
+            if (!stricmp(word, "@retry")) // when done, retry if match worked
+            {
+                patternRetry = true;
+                matched = true; 
+                break;
+            }
             if (word[1] == '_') // set positional reference  @_20+ or @_0-   or anchor @_20
             {
                 if (firstMatched < 0) firstMatched = NORETRY; // cannot retry this match locally
@@ -503,8 +518,8 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 if (*end && (wildcardSelector & WILDMEMORIZEGAP) && !reverse) // close to end of sentence 
                 {
                     positionStart = wordCount; // pretend to match at end of sentence
-                    int start = wildcardSelector & 0x000000ff;
-                    int limit = (wildcardSelector >> GAPLIMITSHIFT) & 0x000000ff;
+                    int start = wildcardSelector & GAPSTART;
+                    int limit = (wildcardSelector & GAPLIMIT) >> GAPLIMITSHIFT ;
                     if ((positionStart + 1 - start) > limit) //   too long til end
                     {
                         matched = false;
@@ -519,12 +534,12 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                     }
                 }
 
-                // memorize gap to end based on direction...
+                // memorize gap to start based on direction...
                 if (*end && (wildcardSelector & WILDMEMORIZEGAP) && reverse) // close to start of sentence 
                 {
-                    positionEnd = 1; // pretend to match at end of sentence
-                    int start = wildcardSelector & 0x000000ff;
-                    int limit = (wildcardSelector >> GAPLIMITSHIFT) & 0x000000ff;
+                    positionEnd = 1; // pretend to match here (looking backwards)
+                    int start = wildcardSelector & GAPSTART;
+                    int limit = (wildcardSelector & GAPLIMIT) >> GAPLIMITSHIFT;
                     if ((start - positionEnd) > limit) //   too long til end
                     {
                         matched = false;
@@ -533,7 +548,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                     }
                     if (wildcardSelector & WILDMEMORIZEGAP)
                     {
-                        if ((start - positionEnd + 1) == 0) SetWildCardGivenValue((char*)"", (char*)"", true, start, index); // empty gap
+                        if ((start - positionEnd + 1) == 0 || start == 0) SetWildCardGivenValue((char*)"", (char*)"",  start, start,index); // empty gap
                         else SetWildCardGiven(positionEnd, start, true, index);  //   wildcard legal swallow between elements
                         wildcardSelector &= -1 ^ (WILDMEMORIZEGAP | WILDGAP);
                     }
@@ -542,7 +557,8 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 if (*end == '-')
                 {
                     reverse = true;
-                    oldEnd = positionEnd = positionStart = WILDCARD_START(wild);
+                    positionEnd = positionStart = WILDCARD_START(wild);
+                    // These are where the "old" match was
                 }
                 else // + and nothing both move forward. 
                 {
@@ -578,9 +594,9 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 }
                 if (trace & TRACE_PATTERN  && CheckTopicTrace())
                 {
-                    if (positionStart <= 0 || positionStart > wordCount || positionEnd <= 0 || positionEnd > wordCount) Log(STDTRACELOG, "(index:%d)", positionEnd);
-                    else if (positionStart == positionEnd) Log(STDTRACELOG, (char*)"(word:%s index:%d)", wordStarts[positionEnd], positionEnd);
-                    else Log(STDTRACELOG, (char*)"(word:%s-%s index:%d-%d)", wordStarts[positionStart], wordStarts[positionEnd], positionStart, positionEnd);
+                    if (positionStart <= 0 || positionStart > wordCount || positionEnd <= 0 || positionEnd > wordCount) Log(STDUSERLOG, "(index:%d)", positionEnd);
+                    else if (positionStart == positionEnd) Log(STDUSERLOG, (char*)"(word:%s index:%d)", wordStarts[positionEnd], positionEnd);
+                    else Log(STDUSERLOG, (char*)"(word:%s-%s index:%d-%d)", wordStarts[positionStart], wordStarts[positionEnd], positionStart, positionEnd);
                 }
                 if (beginmatch == -1) beginmatch = positionStart; // treat this as a real match
                 matched = true;
@@ -747,7 +763,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                     wildcardSelector |= 200 << GAPLIMITSHIFT;  // 200 is a safe infinity // I * meat
                     if (positionStart == 0) positionStart = INFINITE_MATCH; // < * resets to allow match anywhere
                 }
-                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDTRACELOG, (char*)"%s ", word);
+                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDUSERLOG, (char*)"%s ", word);
                 continue;
             }
             break;
@@ -767,7 +783,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 if (IsDigit(word[1]))  ptr = FNVAR(word + 1);
                 else if (word[1] == USERVAR_PREFIX) ptr = GetUserVariable(word + 1); // get value of variable and continue in place
                 else ptr = wildcardCanonicalText[GetWildcardID(word + 1)]; // ordinary wildcard substituted in place (bug)?
-                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDTRACELOG, (char*)"%s=>", word);
+                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDUSERLOG, (char*)"%s=>", word);
                 continue;
             }
 
@@ -849,7 +865,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 baseStack[functionNest] = callArgumentBase;
                 argStack[functionNest] = callArgumentIndex;
 
-                if ((trace & TRACE_PATTERN || D->internalBits & MACRO_TRACE) && CheckTopicTrace()) Log(STDTRACELOG, (char*)"(");
+                if ((trace & TRACE_PATTERN || D->internalBits & MACRO_TRACE) && CheckTopicTrace()) Log(STDUSERLOG, (char*)"(");
                 ptr += 2; // skip ( and space
                 FunctionResult result = NOPROBLEM_BIT;
                 // read arguments
@@ -857,7 +873,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 {
                     ptr = ReadArgument(ptr, buffer, result);  // gets the unevealed arg
                     callArgumentList[callArgumentIndex++] = AllocateStack(buffer);
-                    if ((trace & TRACE_PATTERN || D->internalBits & MACRO_TRACE) && CheckTopicTrace()) Log(STDTRACELOG, (char*)" %s, ", buffer);
+                    if ((trace & TRACE_PATTERN || D->internalBits & MACRO_TRACE) && CheckTopicTrace()) Log(STDUSERLOG, (char*)" %s, ", buffer);
                     *buffer = 0;
                     if (result != NOPROBLEM_BIT)
                     {
@@ -865,7 +881,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                         break;
                     }
                 }
-                if ((trace & TRACE_PATTERN || D->internalBits & MACRO_TRACE) && CheckTopicTrace()) Log(STDTRACELOG, (char*)")\r\n");
+                if ((trace & TRACE_PATTERN || D->internalBits & MACRO_TRACE) && CheckTopicTrace()) Log(STDUSERLOG, (char*)")\r\n");
                 callArgumentBase = fnVarbase = argStack[functionNest] - 1;
                 ptrStack[functionNest++] = ptr + 2; // skip closing paren and space
                 ptr = (char*)FindAppropriateDefinition(D, result);
@@ -887,7 +903,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                     trace = (unsigned int)-1;
                     if (oldtrace && !(oldtrace & TRACE_ECHO)) trace ^= TRACE_ECHO;
                 }
-                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDTRACELOG, (char*)"%s=> ", word);
+                if (trace & TRACE_PATTERN  && CheckTopicTrace()) Log(STDUSERLOG, (char*)"%s=> ", word);
                 if (result == NOPROBLEM_BIT) continue;
             }
             if (result == FAILRULE_BIT) matched = false;
@@ -928,7 +944,10 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 int rEnd = positionEnd;
                 unsigned int oldselect = wildcardSelector;
                 int uppercasemat = 0;
-                // nest inherits gaps leading to it. memorization requests withheld til he returns
+                // nest inherits gaps leading to it. 
+                // memorization requests withheld til he returns.
+                // may have 2 memorizations, gap before and the () item
+                // Only know close of before gap upon return
                 int whenmatched = 0;
                 char* type = "[";
                 if (*word == '(') type = "(";
@@ -943,21 +962,21 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 }
                 int localRebindable = 0; // not allowed to try rebinding start again by default
                 if (positionStart == INFINITE_MATCH) localRebindable = 1; // we can move the start
-                if (oldselect & WILDGAP) localRebindable = 2; // allowed to gap in 
+                if (oldselect & (WILDMEMORIZEGAP | WILDGAP)) localRebindable = 2; // allowed to gap in 
                 int select = wildcardSelector;
-                if (select & WILDMEMORIZEGAP) // dont memorize within, do it out here.
+                if (select & WILDMEMORIZEGAP) // dont memorize within, do it out here but pass gap in
                 {
                     select ^= WILDMEMORIZEGAP;
                     select |= WILDGAP;
                 }
                 else if (select & WILDMEMORIZESPECIFIC) select ^= WILDMEMORIZESPECIFIC;
-
+                int bracketstart = positionEnd + 1; 
                 matched = Match(buffer, ptr, depth + 1, positionEnd, type, localRebindable, select, returnStart,
                     returnEnd, uppercasemat, whenmatched, positionStart, positionEnd, reverse); //   subsection ok - it is allowed to set position vars, if ! get used, they dont matter because we fail
                 wildcardSelector = oldselect; // restore outer environment
-                if (matched)
-                {
-                    // monitor which pattern in multiple matched
+               if (matched) // position and whenmatched may not have changed
+               {
+                   // monitor which pattern in multiple matched
                      // return positions are always returned forward looking
                     if (reverse && returnStart > returnEnd)
                     {
@@ -966,9 +985,21 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                         returnEnd = x;
                     }
 
-                    positionStart = returnStart;
+                    if (wildcardSelector & WILDMEMORIZEGAP) // the wildcard for a gap BEFORE us
+                    {
+                        int index = (wildcardSelector && GAP_SLOT ) >> GAP_SHIFT;
+                        wildcardSelector &= -1 ^ (WILDMEMORIZEGAP| WILDGAP); // remove the before marker
+                        int brackend = whenmatched; // gap starts here
+                        if (whenmatched > 0) returnStart = whenmatched;
+                        SetWildCardGiven(bracketstart, brackend - 1, true, index);  //   wildcard legal swallow between elements
+                    }
+                    else if (wildcardSelector & WILDGAP) // the wildcard for a gap BEFORE us
+                    {
+                        if (whenmatched > 0) returnStart = whenmatched;
+                    }
+                    if (returnStart > 0) positionStart = returnStart;
                     if (positionStart == INFINITE_MATCH && returnStart > 0 && returnStart != INFINITE_MATCH) positionStart = returnEnd;
-                    positionEnd = returnEnd;
+                    if (returnEnd > 0) positionEnd = returnEnd;
 
                     // copy back marking bits on match
                     if (!(statusBits & NOT_BIT)) // wanted match to happen
@@ -1027,8 +1058,8 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 }
                 else if (reverse)
                 {
-                    positionEnd = positionStart - 1;
-                    positionStart = 1;
+                    positionEnd = 1; // nominally matched to here
+                    positionStart -= 1; // began here
                 }
                 else positionStart = wordCount + 1; //   at top level a close implies > )
             }
@@ -1076,59 +1107,22 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
             break;
         case ':': // assignment
         {
-            if (word[1] != '=') goto matchit;
+            if (!strstr(word,":=")) goto matchit;
             char lhsside[MAX_WORD_SIZE];
             char* lhs = lhsside;
             char op[10];
             char rhsside[MAX_WORD_SIZE];
             char* rhs = rhsside;
             DecodeAssignment(word, lhs, op, rhs);
-            if (*lhs == '_' && *rhs == '_') // match var to matchvar canonical assign
-            {
-                int leftindex = GetWildcardID(lhs);
-                int rightindex = GetWildcardID(rhs);
-                strcpy(wildcardOriginalText[leftindex], wildcardCanonicalText[rightindex]);
-                strcpy(wildcardCanonicalText[leftindex], wildcardCanonicalText[rightindex]);
-                CleanUpLine(wildcardOriginalText[leftindex]);
-                CleanUpLine(wildcardCanonicalText[leftindex]);
-                wildcardPosition[leftindex] = wildcardPosition[rightindex];
-                if (trace & TRACE_PATTERN) sprintf(word, (char*)"_%s=%s", lhs, wildcardOriginalText[leftindex]);
-            }
-            else if (*lhs == '_' && *rhs == '\'' && rhs[1] == '_') // match var to quoted matchvar assign
-            {
-                int leftindex = GetWildcardID(lhs);
-                int rightindex = GetWildcardID(rhs + 1);
-                strcpy(wildcardOriginalText[leftindex], wildcardOriginalText[rightindex]);
-                strcpy(wildcardCanonicalText[leftindex], wildcardOriginalText[rightindex]);
-                CleanUpLine(wildcardOriginalText[leftindex]);
-                CleanUpLine(wildcardCanonicalText[leftindex]);
-                wildcardPosition[leftindex] = wildcardPosition[rightindex];
-                if (trace & TRACE_PATTERN) sprintf(word, (char*)"_%s=%s", lhs, wildcardOriginalText[leftindex]);
-            }
-            else if (*lhs == '_' && *rhs == '$') //  var to matchvar assign 
-            {
-                int leftindex = GetWildcardID(lhs);
-                strcpy(wildcardOriginalText[leftindex], GetUserVariable(rhs));
-                strcpy(wildcardCanonicalText[leftindex], GetUserVariable(rhs));
-                CleanUpLine(wildcardOriginalText[leftindex]);
-                CleanUpLine(wildcardCanonicalText[leftindex]);
-                wildcardPosition[leftindex] = 0;
-                if (trace & TRACE_PATTERN) sprintf(word, (char*)"_%s=%s", lhs, wildcardOriginalText[leftindex]);
-            }
-            else if (*lhs == '_' && IsAlphaUTF8DigitNumeric(*rhs)) //  literal to matchvar assign 
-            {
-                int leftindex = GetWildcardID(lhs);
-                strcpy(wildcardOriginalText[leftindex], rhs);
-                strcpy(wildcardCanonicalText[leftindex], rhs);
-                CleanUpLine(wildcardOriginalText[leftindex]);
-                CleanUpLine(wildcardCanonicalText[leftindex]);
-                wildcardPosition[leftindex] = 0;
-                if (trace & TRACE_PATTERN) sprintf(word, (char*)"_%s=%s", lhs, wildcardOriginalText[leftindex]);
-            }
-        }
-            matched = true;
+            FunctionResult result;
+            char* ptr = AllocateBuffer("patternmatchassign");
+            strcpy(ptr, " = ");
+            strcpy(ptr + 3, rhs);
+            PerformAssignment(lhs, ptr, buffer, result);
+            FreeBuffer("patternmatchassign");
+            if (result == NOPROBLEM_BIT) matched = true;
             uppercaseFind = -1;
-
+        }
             break;
         case '=': //   a comparison test - never quotes the left side. Right side could be quoted
                   //   format is:  = 1-bytejumpcodeToComparator leftside comparator rightside
@@ -1273,41 +1267,43 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
         }
 
         //   prove any wild gap was legal, accounting for ignored words if needed
-        unsigned int started;
-        if (!reverse) started = (positionStart < REAL_SENTENCE_LIMIT) ? positionStart : 0; // position start may be the unlimited access value
-        else
+        int matchStarted; // actual place included in match from direction of match (start of prior word if reverse)
+        if (!reverse) matchStarted = (positionStart < REAL_SENTENCE_LIMIT) ? positionStart : 0; // position start may be the unlimited access value
+        else // reverse
         {
             if (positionEnd > wordCount) positionEnd = wordCount;
-            started = (positionStart < REAL_SENTENCE_LIMIT) ? positionEnd : wordCount; // position start may be the unlimited access value
+            matchStarted = (positionStart < REAL_SENTENCE_LIMIT) ? positionEnd  : wordCount; // position start may be the unlimited access value
         }
-        if (started == INFINITE_MATCH) started = 1;
+        if (matchStarted == INFINITE_MATCH) matchStarted = 1;
         bool legalgap = false;
-        unsigned int memorizationStart = positionStart;
+        unsigned int memorizationStart = positionStart; 
         if ((wildcardSelector & WILDGAP) && matched) // test for legality of gap
         {
-            unsigned int begin = started; // where we think we are now at match
-            memorizationStart = started = (wildcardSelector & 0x000000ff); // actual word we started at
-            unsigned int ignore = started;
-            int x;
-            int limit = (wildcardSelector >> GAPLIMITSHIFT) & 0x000000ff;
-            if (reverse)
+            int endOfGap = matchStarted; // where we think we are now at current match
+            memorizationStart = matchStarted = (wildcardSelector & GAPSTART); // actual word we started at
+                    
+            unsigned int ignore = matchStarted;
+            int gapSize;
+            if (!reverse)
             {
-                x = started - begin; // *~2 debug() something will generate a -1 started... this is safe here
-                while (ignore > begin) // no charge for ignored words in gap
-                {
-                    if (unmarked[ignore--]) --x;
-                }
+                // gap counting must skip ignored slots
+                gapSize = endOfGap - matchStarted; // *~2 debug() something will generate a -1 started... this is safe here
+                while (ignore < endOfGap) { if (unmarked[ignore++]) --gapSize; } // no charge for ignored words in gap
             }
-            else
+            else // reverse
             {
-                x = begin - started; // *~2 debug() something will generate a -1 started... this is safe here
-                while (ignore < begin) // no charge for ignored words in gap
-                {
-                    if (unmarked[ignore++]) --x;
-                }
+                gapSize = matchStarted - endOfGap; // *~2 debug() something will generate a -1 started... this is safe here
+                while (ignore > endOfGap) {if (unmarked[ignore--]) --gapSize;}// no charge for ignored words in gap
             }
-            if (x < 0) legalgap = false; // if searched _@10- *~4 > 
-            else if (x <= limit) legalgap = true;   //   we know this was legal, so allow advancement test not to fail- matched gap is started...oldEnd-1
+
+            int limit = (wildcardSelector & GAPLIMIT) >> GAPLIMITSHIFT;
+            if (gapSize < 0) legalgap = false; // if searched _@10- *~4 > 
+            else if (gapSize <= limit)
+            {
+                legalgap = true;   //   we know this was legal, so allow advancement test not to fail- matched gap is started...oldEnd-1
+                // need to know (< *) pattern matcher 
+                if (!depth && *word == ')' && firstMatched < 0) firstMatched = memorizationStart;
+            }
             else
             {
                 matched = false;  // more words than limit
@@ -1337,8 +1333,8 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
             }
             else if (wildcardSelector & (WILDMEMORIZEGAP | WILDMEMORIZESPECIFIC)) //   memorize ONE -  will be gap or specific not in front of () {} []
             {
-                if (started == INFINITE_MATCH) started = 1;
-                if (positionStart == INFINITE_MATCH) positionStart = 1;
+                if (matchStarted == INFINITE_MATCH) matchStarted = 1;
+                if (positionStart == INFINITE_MATCH) positionStart = 1; // always is moving forward
                 if (wildcardSelector & WILDMEMORIZEGAP) //   would be first if both
                 {
                     int hold = uppercaseFind;
@@ -1346,11 +1342,13 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                     int index = (wildcardSelector >> GAP_SHIFT) & 0x0000001f;
                     if (reverse)
                     {
-                        if ((started - positionStart) == 0) SetWildCardGivenValue((char*)"", (char*)"", 0, positionEnd + 1, index); // empty gap
-                        else SetWildCardGiven(positionStart + 1, memorizationStart, true, index);  //   wildcard legal swallow between elements
+                        // if starter was at beginning, there is no data to match
+                        if (positionStart == 0) SetWildCardGivenValue((char*)"", (char*)"", positionStart, positionEnd , index); // empty gap
+                        else if (positionStart < positionEnd) SetWildCardGiven(positionStart, positionEnd, true, index);  //   wildcard legal swallow between elements
+                        else SetWildCardGiven(positionEnd, positionStart ,  true, index);  //   wildcard legal swallow between elements
                     }
                     else if ((positionStart - memorizationStart) == 0) SetWildCardGivenValue((char*)"", (char*)"", 0, oldEnd + 1, index); // empty gap
-                    else
+                    else // normal gap
                     {
                         SetWildCardGiven(memorizationStart, positionStart - 1, true, index);  //   wildcard legal swallow between elements
                         if (positionEnd < (positionStart - 1)) positionEnd = positionStart - 1;	// gap closes out 
@@ -1375,7 +1373,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
             }
             wildcardSelector = 0; // completes all memorization/gaps at this level
         }
-        else //   fix side effects of anything that failed to match by reverting
+        else // (  fix side effects of anything that failed to match by reverting
         {
             positionStart = oldStart;
             positionEnd = oldEnd;
@@ -1454,7 +1452,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 }
             }
         }
-        else if (!legalgap && rebindable != 2) // forward requirement must be tested (1 means we are allowed to rebind)
+        else if (!legalgap) //  && rebindable != 2  forward requirement must be tested (1 means we are allowed to rebind)
         {
             if (oldEnd < oldStart && positionStart <= (oldStart + 1)) { ; } // legal move ahead given matched WITHIN last time -- what does match within mean?
             else if (positionStart >(oldEnd + 1))  // failed to match position advance of one
@@ -1470,6 +1468,12 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                 }
             }
         }
+        else // simple advance failed, not rebindable
+        {
+            matched = false;
+            positionStart = oldStart;
+            positionEnd = oldEnd;
+        }
 
         if (trace & TRACE_PATTERN  && CheckTopicTrace())
         {
@@ -1479,16 +1483,16 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
             else if (*word == ']' || *word == '}' || *word == ')' || (*word == '>' && word[1] == '>')) {}
             else
             {
-                Log(STDTRACELOG, (char*)"%s", word);
+                Log(STDUSERLOG, (char*)"%s", word);
                 if (*word == '~' && matched)
                 {
                     if (positionStart <= 0 || positionStart > wordCount || positionEnd <= 0 || positionEnd > wordCount) { ; } // still in init startup?
-                    else if (positionStart != positionEnd) Log(STDTRACELOG, (char*)"(%s...%s)", wordStarts[positionStart], wordStarts[positionEnd]);
-                    else Log(STDTRACELOG, (char*)"(%s)", wordStarts[positionStart]);
+                    else if (positionStart != positionEnd) Log(STDUSERLOG, (char*)"(%s...%s)", wordStarts[positionStart], wordStarts[positionEnd]);
+                    else Log(STDUSERLOG, (char*)"(%s)", wordStarts[positionStart]);
                 }
                 else if (*word == USERVAR_PREFIX && matched)
                 {
-                    Log(STDTRACELOG, (char*)"(%s)", GetUserVariable(word));
+                    Log(STDUSERLOG, (char*)"(%s)", GetUserVariable(word));
                 }
                 else if (*word == '*' && matched && positionStart > 0 && positionStart <= wordCount && positionEnd <= wordCount)
                 {
@@ -1498,10 +1502,10 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
                         if (*word) strcat(word, (char*)" ");
                         strcat(word, wordStarts[i]);
                     }
-                    Log(STDTRACELOG, (char*)"(%s)", word);
+                    Log(STDUSERLOG, (char*)"(%s)", word);
                 }
 
-                Log(STDTRACELOG, (success) ? (char*)"+ " : (char*)"- ");
+                Log(STDUSERLOG, (success) ? (char*)"+ " : (char*)"- ");
             }
         }
 
@@ -1571,7 +1575,7 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
     {
         callArgumentIndex = argStack[startNest];
         callArgumentBase = baseStack[startNest];
-        fnVarbase = callArgumentIndex - 1;
+        fnVarbase = startfnvarbase;
         functionNest = startNest;
     }
 
@@ -1585,7 +1589,11 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
             returnstart = positionEnd;
         }
         else if (depth > 0 && *word == ')') returnstart = positionStart;		// where we began this level
-        else returnstart = (firstMatched > 0) ? firstMatched : positionStart; // if never matched a real token, report 0 as start
+        else
+        {
+            if (firstMatched == NORETRY) returnstart = 1; // non-rebindable < start of pattern
+            else returnstart = (firstMatched > 0) ? firstMatched : positionStart; // if never matched a real token, report 0 as start
+        }
     }
 
     //   if we leave this level w/o seeing the close, show it by elipsis 
@@ -1595,18 +1603,18 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
     {
         if (*word != ')' && *word != '}' && *word != ']' && (*word != '>' || word[1] != '>'))
         {
-            if (*ptr != '}' && *ptr != ']' && *ptr != ')' && (*ptr != '>' || ptr[1] != '>')) Log(STDTRACELOG, (char*)"...");	// there is more in the pattern still
+            if (*ptr != '}' && *ptr != ']' && *ptr != ')' && (*ptr != '>' || ptr[1] != '>')) Log(STDUSERLOG, (char*)"...");	// there is more in the pattern still
             if (success)
             {
-                if (*kind == '<') Log(STDTRACELOG, (char*)">>");
-                else Log(STDTRACELOG, (char*)"%c", (*kind == '{') ? '}' : ']');
+                if (*kind == '<') Log(STDUSERLOG, (char*)">>");
+                else Log(STDUSERLOG, (char*)"%c", (*kind == '{') ? '}' : ']');
             }
-            else if (*kind == '<') Log(STDTRACELOG, (char*)">>");
-            else Log(STDTRACELOG, (char*)")");
+            else if (*kind == '<') Log(STDUSERLOG, (char*)">>");
+            else Log(STDUSERLOG, (char*)")");
         }
-        else Log(STDTRACELOG, (char*)"%s", word); // we read to end of pattern 
-        if (*word == '}') Log(STDTRACELOG, (char*)"+"); // optional always matches, by definition
-        else Log(STDTRACELOG, (char*)"%c", matched ? '+' : '-');
+        else Log(STDUSERLOG, (char*)"%s", word); // we read to end of pattern 
+        if (*word == '}') Log(STDUSERLOG, (char*)"+"); // optional always matches, by definition
+        else Log(STDUSERLOG, (char*)"%c", matched ? '+' : '-');
         Log(STDTRACETABLOG, (char*)""); // next level resumed
     }
     if (trace & TRACE_PATTERN && !depth)
@@ -1619,10 +1627,10 @@ Some operations like < or @_0+ force a specific position, and if no firstMatch h
             char* atx = strchr(copy, ')');
             if (atx) atx[1] = 0;
             CleanOutput(copy);
-            Log(STDTRACELOG, (char*)"        Remaining pattern: %s\r\n", copy);
+            Log(STDUSERLOG, (char*)"        Remaining pattern: %s\r\n", copy);
             ReleaseStack(copy);
         }
-        else Log(STDTRACELOG, (char*)")+\r\n");
+        else Log(STDUSERLOG, (char*)")+\r\n");
     }
     patternDepth--;
     return success;

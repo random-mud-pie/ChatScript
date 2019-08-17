@@ -1,3 +1,78 @@
+# Version 9.61 7/28/2019
+1. @retry in pattern allows pattern to self retry without output execution of 
+    ^retry(rule)
+2. :regress exit
+    if your 1st argument to :regress is "exit", then CS will quit with return
+    code 0 when it passes or return code 1 when fail. Good for batch file autotesting.
+3. ^delete now allows 2nd argument BOOT to authorize killing system facts
+4 ^setFactOwner(fact idbits)
+    Changes ownership bits on a fact. 
+5 1st argument to ^format deprecated. No longer need to say INTEGER or FLOAT
+6 ^csboot allowed to be multiply defined without error message
+    because Multibot deploys
+
+# Version 9.6 7/14/2019
+1. unmark(@ _0) changed to unmark the width of the match, not just the start position
+2. JSONLOOP (x y z OLD/NEW)
+	choose which way to walk a json object/array either newest first or oldest first
+3. TAB macro flag
+	Be able to treat table data using tabs to mean * for that tab
+4. ^bug()
+	be able to report a bug to system bug log (or script compiler) for runtime code (particularly in a table being compiled)
+5. %tableinput - current input line to table processing
+6. ^mark(word _0  ALL/ONE)  when marking, either propogate marks to all encompassing concept sets or just mark this one word
+
+
+
+# Version 9.5  6/26/2019
+
+1. Testoutput now returns field error: true  if code execution failed.
+2. you can force ^testpattern to trace user regardless of whether tracing is on or not or whether nouserlog is set.  Just prepend to your input ":tracepattern"
+3. unmark(@ _0) unmark everything starting there (but only at that 1 start spot, not range implied. This include sthe concepts and topics list and marks themslelf.s
+4. Serious bug fixed if you have topics in both level 0 and level 1.  CS shipping of level 0 does not have topics so almost no one noticed this bug til now.
+
+# Version 9.41 - EMERGENCY RELEASE  6/4/2019
+9.4 has a bug wherein it inadvertently writes logging data to the user log file while processing
+json parse data. This can blow out disk space in a heavily used server.  This has been fixed.
+Other changes:
+1. ~filename - words with file suffixes
+2. crashpath= names where to write about fatal signal handers in linux... writing in the cs directory might be erased by an auto redeploy
+3 %zulutime adds elapsed time at end
+4. ^jsonloop($jsonstruct $var1 $var2)
+	similar to loop but runs thru json members and is the most
+	efficient and compact way to do so
+
+
+# version - 9.4  5/27/2019
+1. You can treat a json object as an array of fields.
+    $data = ^jsoncreate(transient object)
+    $data.tablet.testit = 1
+    $cx = 0
+    $_field $data.tablet[$cx]
+    returns field name of object after which you can do
+    $data.tablet.$_field to get the value
+ 2. $data.something[-1]  is the opposite end from [0], applies to object or arrays
+    For arrays it's the highest index value. For objects its the first field name.
+ 3. ^pos(preexists word) -- was word in dictionary BEFORE this volley?
+ 4. to use a variable name AS a field name, escape it
+    $data.\$varname = hello  uses $varname as field name and not indirecting via $varname
+ 5. full := assign in pattern
+ 6. data format for testpattern simplified, now parterns is array of strings not array of objects
+ 7. Rule-based spellchecking  added to spelling practicum
+ 8. ^changebot(botname botid) change identity on the fly, allowing this bot to see facts, functions,
+ and topics of botname instead of itself.
+ 9.  updated documentation to note that RESPONSE_NOCONVERTSPECIAL on $cs_ response is default.
+
+# version 9.31 4/30/2019
+0. pattern assignment now allowed with system variables also   (_0:=%time)
+1. changes to the ^testoutput function. it does NOT erase its changes. It may return null
+    for variable assignments. It will return a text string representing the json data if
+    a returned variable is a json structure name.
+2. for both ^testinput and ^testoutput, if the value of an incoming variable looks like
+    a json structure, it will be converted into the std internal json data structure and
+    the variable set to its json name.
+3. ^testpattern matchvar returns the original text, not the canonical
+
 # version 9.3 
 0. new practicum document: Practicum-Concepts-and_meaning
 1. %factexhaustion , which can take assignment to false to turn off the flag

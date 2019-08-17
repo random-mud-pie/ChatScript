@@ -1,6 +1,6 @@
 # ChatScript Pattern Redux
-© Bruce Wilcox, mailto:gowilcox@gmail.com www.brilligunderstanding.com
-<br>Revision 5/7/2017 cs7.42
+© Bruce Wilcox, mailto:gowilcox@gmail.com www.brilligunderstanding.com  
+<br>Revision 7/28/2019 cs9.61
 
 Pattern matching information was introduced in the Beginner manual and expanded in the 
 [Advanced User Manual](ChatScript-Advanced-User-Manual.md).
@@ -8,7 +8,7 @@ Since pattern matching is of such importance,
 this concise manual lists everything about patterns in one place,
 including patterns not listed in the Advanced manual.
 
-NOTE<br>
+NOTE:
 despite the extraordinary range of weird matching abilities, 
 almost all of my normal code is based on one of three patterns:
 
@@ -39,7 +39,7 @@ input so highly.
 ## IF Patterns
 
 Pattern matching can be done not just in a rule's pattern component but also in its output component,
-within an IF statement, e.g.:
+within an `if` statement, e.g.:
 
     if ( PATTERN _~number  ) { print( _0)  }
 
@@ -65,7 +65,7 @@ That means these two rules take the same time to match
 The system tracks current position in the sentence as it matches.
 
 The first token of a pattern is allowed to match anywhere in the sentence. 
-After that normally tokens are matched in against words in consecutive order in the input. 
+After that normally tokens are matched against words in consecutive order in the input. 
 If a pattern starts to match and then fails, 
 the system is allowed to retry matching later in the sentence once. 
 It does this by freeing up the first matching word/concept token and letting it rebind later. 
@@ -111,7 +111,9 @@ You can also ask if a user variable is defined just by naming it:
 
 this only matches if input has _help_ and `$myvar` is not null.
 
-System variables one would not ask if they are defined 
+#### System variables 
+
+one would not ask if they are defined 
 (they almost always are) but would use in a relation instead.
 
 Similarly, `_0` by itself in a pattern means is it defined, that is, not null.
@@ -189,15 +191,15 @@ Braces means match one of the contained tokens if you can, but don't fail if you
 Using `{}` inside of angles is pointless (unless you put an underscore in front to memorize something)
 because it makes no difference to matching whether or not you had the `{}` content. 
 
-It is not helping align position within the sentence.
-These are normally used to assist in positional alignment by swallowing words.
+Braces do not align position within a sentence.
+They are normally used to assist in positional alignment by swallowing words.
 
     u: ( I go to {the} market )
 
 matches both _I go to the market_ and _I go to market_. 
 
 If you use underscore before braces to memorize the answer found, 
-then when no answer is found the match variable is set to null (no content) but it is set.
+then when no answer is found the match variable is set to `null` (no content) but it is set.
 
 
 #### Angles `<<` ... `>>`
@@ -211,17 +213,17 @@ following this sequence so if you had the pattern:
     u: ( I * like << really >> photos )
 
 and input _photos I really like_ then it would match because it found _I * like_ then found anywhere
-really and then reset the position freely back to start and found photos anywhere in the sentence.
+`really` and then reset the position freely back to start and found `photos` anywhere in the sentence.
 
 
 ### Wildcards `*` `*~2` `*3` `*-2`  `*~2b`
 
-Wildcards allow you to relax the positional requirements for matching. The classic wildcard “*” allows
+Wildcards allow you to relax the positional requirements for matching. The classic wildcard `*`allows
 you to have zero or more words between other tokens in a pattern.
 
     u: ( I * you )
  
-matches _I love chicken and hate you- as well as _I you they_.
+matches _I love chicken and hate you_ as well as _I you they_.
 
 You can limit the unlimited range by adding `~n` after it. So `*~1` means 0 or 1 words may intervene.
 
@@ -253,13 +255,13 @@ Generally done with an underscore in front to memorize the sequence.
 
 ### Negation `!` and `!!`
 
-`!x` means prove that x is not found anywhere in the sentence later than where we are:
+`!x` means match only if x is not found anywhere in the sentence later than where we are:
 
     u: ( !not I love you )
 
 This pattern says the word not cannot occur anywhere in the sentence.
 
-`!!x` means prove that x is not the next word.
+`!!x` means match only if x is not the next word.
 
 
 ### Original Form `'`
@@ -369,12 +371,12 @@ The relationship operators are:
 | `>`      | greater than
 | `>=`     | greater than or equal to
 | `&`      | bit anded results in non-zero
-| `?`      | is member of 2nd arg concept or topic or JSON array.<br>if no argument occurs after, means is value found in sentence
+| `?`      | is member of 2nd arg concept or topic or JSON array. If no argument occurs after, means is value found in sentence
 
-Comparing two text strings (not numbers) will do it based on case-independent alpha sorting.
+Using a compare with two text strings (not numbers) will evaluate based on case-independent alpha sorting.
 
-The ? operator has two forms. `xxx?~yyy` will look for actual membership in the set whereas
-`_n?~yyy` will only see if the location of match detection of _n is the same as a 
+The `?` operator has two forms. `xxx?~yyy` will look for actual membership in the set whereas
+`_n?~yyy` will only see if the location of match detection of `_n` is the same as a 
 corresponding match location for the concept. If the concept has not been marked, then 
 obviously no match is found.
 
@@ -437,7 +439,7 @@ you are allowed relation operators on the result as well.
 
     u: ( ^lastused(~ gambit)>5 )
 
-NOTE:<br>
+NOTE:  
 User defined functions (`patternmacros`) do not allow relational operators after them. 
 
 Patternmacros do not generate answers. 
@@ -448,7 +450,7 @@ They are treated as in-line additional pattern tokens.
     u: ( ~noun ^testuse(apple)) # matches "I like pear and apple"
 
 
-A powerful use of function calling is to call `^respond(~topicname)` from in a pattern. 
+A powerful use of function calling is to call `^respond(~topicname)` in a pattern. 
 The topic can match something and set up a variable for further guidance. E.g.,
 
     u: ( ^respond(~finddelay) $$delay ) Wait for $$delay.
@@ -497,7 +499,7 @@ It means "reset position" to the start of the sentence.
 matches _I love_ but not _do I love_.
 
 When you put `>` in your pattern, it does not alter your position, 
-but it tries to match to confirm you are on the last word of the sentence.
+but it tries to confirm you are on the last word of the sentence.
 
     u: ( I * > )
 
@@ -529,6 +531,14 @@ and during the pattern must also match at that location now.
     u: ( _@0 is @_1 )
 
 The above pattern says that the word `is` must be precisely found between the locations referenced by `@0` and `@1`.
+
+
+### Retrying scan `@retry` 
+Normally one matches a pattern, performs the output code, and if you want to restart
+the pattern to find the next occurrence of a match, you use ^retry(RULE) or
+^retry(TOPRULE).  Well, if your pattern executes @retry as a token, it will retry on
+its own without needing to execute any output code. Useful in conjunction with
+^testpattern.
 
 
 ## Debugging

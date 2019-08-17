@@ -113,14 +113,14 @@ extern uint64 docVolleyStartTime;
 #define IsComparison(c) (isComparatorData[(unsigned char)c])
 WORDP BUILDCONCEPT(char* word) ;
 void RemoveTilde(char* output);
-double Convert2Float(char* original,int useNumberStyle = AMERICAN_NUMBERS);
+double Convert2Double(char* original,int useNumberStyle = AMERICAN_NUMBERS);
 char* RemoveEscapesWeAdded(char* at);
 bool IsComparator(char* word);
 void ConvertNL(char* ptr);
 char* IsSymbolCurrency(char* ptr);
 void ComputeWordData(char* word, WORDINFO* info);
 char* CopyRemoveEscapes(char* to, char* at,int limit,bool all = false);
-char* AddEscapes(char* to, char* from,bool normal,int limit);
+char* AddEscapes(char* to, char* from,bool normal,int limit,bool addescape=true);
 void AcquireDefines(char* fileName);
 void AcquirePosMeanings(bool facts);
 char* FindNameByValue(uint64 val); // properties
@@ -133,6 +133,8 @@ uint64 FindParseValueByName(char* name); // parse flags
 uint64 FindMiscValueByName(char* name); // misc data
 void CloseTextUtilities();
 bool IsModelNumber(char* word);
+char* ReadPatternToken(char* ptr, char* word);
+
 bool IsInteger(char* ptr, bool comma, int useNumberStyle = AMERICAN_NUMBERS);
 char* IsUTF8(char* buffer,char* character);
 char* Purify(char* msg);
@@ -153,6 +155,8 @@ bool IsPlaceNumber(char* word, int useNumberStyle = AMERICAN_NUMBERS);
 bool IsDigitWord(char* word,int useNumberStyle = AMERICAN_NUMBERS,bool comma = false);
 bool IsDigitWithNumberSuffix(char* number,int useNumberStyle = AMERICAN_NUMBERS);
 bool IsUrl(char* word, char* end);
+bool IsFileExtension(char* word);
+bool IsFileName(char* word);
 unsigned int IsMadeOfInitials(char * word,char* end);
 bool IsNumericDate(char* word,char* end);
 char IsFloat(char* word, char* end, int useNumberStyle = AMERICAN_NUMBERS);

@@ -36,6 +36,7 @@ extern char errors[MAX_ERRORS][MAX_WORD_SIZE];
 extern unsigned int errorIndex;
 extern char warnings[MAX_WARNINGS][MAX_WORD_SIZE];
 extern unsigned int warnIndex;
+extern char* tableinput;
 
 void ScriptError();
 void EraseTopicFiles(unsigned int build,char* name);
@@ -43,7 +44,11 @@ void InitScriptSystem();
 void SaveCanon(char* word, char* canon);
 
 char* ReadDisplayOutput(char* ptr,char* buffer);
-  
+void EndScriptCompiler();
+bool StartScriptCompiler(bool normal = true, bool live = false);
+
+#define BADSCRIPT(...) {ScriptError(); Log((compiling) ? BADSCRIPTLOG : STDUSERLOG , __VA_ARGS__); JumpBack();}
+
 #ifndef DISCARDSCRIPTCOMPILER
 int ReadTopicFiles(char* name,unsigned int build, int spell);
 char* ReadPattern(char* ptr, FILE* in, char* &data,bool macro,bool ifstatement);
@@ -51,11 +56,9 @@ char* ReadIf(char* word, char* ptr, FILE* in, char* &data, char* rejoinders);
 char* ReadOutput(bool optionalBrace,bool nested,char* ptr, FILE* in,char* &data,char* rejoinders,char* existingRead = NULL,WORDP call = NULL, bool choice = false);
 char* CompileString(char* ptr);
 void ScriptWarn();
-void EndScriptCompiler();
-bool StartScriptCompiler(bool normal = true,bool live = false);
-#define WARNSCRIPT(...) {if (compiling) {ScriptWarn(); Log(STDTRACELOG, __VA_ARGS__);} } // readpattern calls from functions should not issue warnings
+#define WARNSCRIPT(...) {if (compiling) {ScriptWarn(); Log(STDUSERLOG, __VA_ARGS__);} } // readpattern calls from functions should not issue warnings
 #else
-#define WARNSCRIPT(...) {Log(STDTRACELOG, __VA_ARGS__); } // readpattern calls from functions should not issue warnings
+#define WARNSCRIPT(...) {Log(STDUSERLOG, __VA_ARGS__); } // readpattern calls from functions should not issue warnings
 #endif
 
 // ALWAYS AVAILABLE
@@ -65,7 +68,5 @@ void AddWarning(char* buffer);
 void AddError(char* buffer);
 char* ReadNextSystemToken(FILE* in,char* ptr, char* word, bool separateUnderscore=true,bool peek=false);
 char* ReadSystemToken(char* ptr, char* word, bool separateUnderscore=true);
-
-#define BADSCRIPT(...) {ScriptError(); Log((compiling) ? BADSCRIPTLOG : STDTRACELOG , __VA_ARGS__); JumpBack();}
 
 #endif

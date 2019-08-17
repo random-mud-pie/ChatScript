@@ -2,6 +2,12 @@
 
 This repo is a fork of [ChatScript](https://github.com/ChatScript/ChatScript) with updated bots. It is also tightly coupled with [docker-chatscript](https://github.com/random-mud-pie/docker-chatscript).
 
+# Status
+The former repository of ChatScript was at https://github.com/bwilcox-1234/ChatScript, however, I lost
+access to this repository (2 factor authentication lost that I didn't want in the first place and I could not convince
+github to restore my access). So it is no longer maintained. But the global user ChatScript 
+became available, and is a better name anyway.
+
 # ChatScript
 Natural Language tool/dialog manager
 

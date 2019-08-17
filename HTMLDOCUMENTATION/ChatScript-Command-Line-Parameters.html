@@ -9,16 +9,16 @@
 </head>
 <body>
 <h1 id="chatscript-command-line-parameters">ChatScript Command Line Parameters</h1>
-<p>Copyright Bruce Wilcox, gowilcox@gmail.com www.brilligunderstanding.com<br> <br>Revision 2/12/2019 cs9.1</p>
+<p>Copyright Bruce Wilcox, gowilcox@gmail.com www.brilligunderstanding.com<br> <br>Revision 6/3/2019 cs9.41</p>
 <h1 id="command-line-parameters">Command Line Parameters</h1>
 <p>You can give parameters on the run command or in a config file or via a http request. The default config file is <code>cs_init.txt</code> at the top level of CS (if the file exists). Or you can name where the file is on a command line parameter <code>config=xxx</code>. If you have secret information that you don't want stored in a config file or exposed on a command line then you can request the config data from a URL. Use the command line parameter configurl=http://xxx to specify the address of the data. Additional command line parameters, configheader=xxx, can be included to define HTTP request headers. If there are several headers then use separate configheader=xxx configheader=yyy etc parameters for each header name/value pair.</p>
 <p>Config file data are command line parameters, 1 per line, like below:</p>
 <pre><code>noboot 
 port=20</code></pre>
-<p>Some parameters require a value and use the <code>=</code> format with no spaces. Other parameters may only require you name the parameter (they have no choices of values).s</p>
+<p>Some parameters require a value and use the <code>=</code> format with no spaces. Other parameters may only require you name the parameter (they have no choices of values).</p>
 <p>Actual command line parameters have priority over config file values, and those have priority over http requested values.</p>
 <h2 id="memory-options">Memory options</h2>
-<p>Chatscript statically allocates its memory and so (barring unusual circumstance) will not allocate memory every during its interactions with users. These parameters can control those allocations. Done typically in a memory poor environment like a cellphone.</p>
+<p>Chatscript statically allocates its memory and so (barring unusual circumstance) will not allocate memory ever during its interactions with users. These parameters can control those allocations. Done typically in a memory poor environment like a cellphone.</p>
 <table>
 <colgroup>
 <col width="17%" />
@@ -150,6 +150,10 @@ port=20</code></pre>
 <tr class="even">
 <td><code>tmp=xxx</code></td>
 <td>name relative or absolute path to where you want the TMP folder to be. Do not add trailing <code>/</code></td>
+</tr>
+<tr class="odd">
+<td><code>crashpath=xxx</code></td>
+<td>file to write about fatal Linux signals that will be outside of the cs folder <code>/</code></td>
 </tr>
 </tbody>
 </table>

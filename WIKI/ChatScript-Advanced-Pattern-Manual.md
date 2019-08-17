@@ -1,16 +1,16 @@
-﻿# ChatScript Advanced Pattern Manual
-© Bruce Wilcox, gowilcox@gmail.com www.brilligunderstanding.com<br>
-<br>Revision 4/26/2019 cs9.3
+# ChatScript Advanced Pattern Manual
+copyright Bruce Wilcox, mailto:gowilcox@gmail.com <br>
+<br>Revision 7/28/2019 cs9.61
 
 
 # ADVANCED PATTERNS
 
 ## Keyword Phrases
 
-You cannot make a concept out with a member whose string includes starting or trailing
+You cannot make a concept with a member whose string includes starting or trailing
 blanks, like " X ". Such a word could never match as a pattern, since spaces are skipped
 over. But you can make it respond to idiomatic phrases and multiple words. Just put them
-in quotes. E.g. 
+in quotes, e.g. 
 
     concept: ~remove ( "take away" remove )
 
@@ -20,9 +20,9 @@ Normally in patterns you can write
 
 and the system will match sentences with those words in order. 
 
-In WordNet, some words are actually composite words like : _TV_show_. 
+In WordNet, some words are actually composite words like : `TV_show`. 
 When you do `:prepare` on _what is your favorite TV show_ 
-you will discover that the engine has merged _TV_show_ into one composite word. 
+you will discover that the engine has merged `TV_show` into one composite word. 
 The system has no trouble matching inputs where the words are split apart
 
     ?: ( what is your favorite TV show )
@@ -31,7 +31,7 @@ But if you tried a word memorize like
 
     ?: ( what is your favorite *1 *1 )
 
-that would fail because the first `*1` memorizes _TV_show_ and there is therefore no second
+that would fail because the first `*1` memorizes `TV_show` and there is therefore no second
 word to memorize. 
 
 Likewise when you write 
@@ -41,13 +41,13 @@ Likewise when you write
 the system can match that concept readily also. 
 In fact, whenever you write the quoted keyword phrase, 
 if all its words are canonical, you can match canonical and noncanonincal forms. 
-_"TV show"_ matchs _TV shows_ as well as _TV show_.
+`"TV show"` matchs `TV shows` as well as `TV show`.
 
 ## Implied concept Sets
 
-When you make a pattern using [] or {} and it only contains words, phrases, And
+When you make a pattern using [] or {} and it contains words, phrases, and
 concept sets, the system will make an anonymous concept set out of them.
-This allows the system to find the soonest match of any of them. otherwise
+This allows the system to find the soonest match of any of them. Otherwise
 [] and {} take each element in turn and try to find a match, which may be later in 
 the sentence than a later element in the set would match.
 
@@ -59,7 +59,7 @@ the meaning you want.
     concept: ~buildings [ shelter~1 living_accomodations~1 building~3 ]
 
 The concept `~buildings` represents 760 general and specific building words found in the
-WordNet dictionary – any word which is a child of: definition 1 of shelter, definition 1 of
+WordNet dictionary   any word which is a child of: definition 1 of shelter, definition 1 of
 accommodations, or definition 3 of building in WordNet's ontology. 
 
 How would you be able to figure out creating this? 
@@ -71,7 +71,7 @@ The first is what you might say to refer to the 3rd meaning of building.
 Internally `building~3n` denotes the 3rd meaning and its a _noun_ meaning. 
 
 You may see that in printouts from Chatscript. 
-If you write 3n yourself, the system will strip off the `n` marker as superfluous.
+If you write `building~3n` yourself, the system will strip off the `n` marker as superfluous.
 
 Similarly you can invoke parts of speech classes on words. 
 By default you get all of them. If you write: 
@@ -122,7 +122,7 @@ _I've been clean for months_ to target it, but not _I clean my house_.
 You can call any predefined system function. It will fail the pattern if it returns any fail or end code. 
 It will pass otherwise.  The most likely functions you would call would be:
 
-`^query` – to see if some fact data could be found.
+`^query`   to see if some fact data could be found.
 Many functions make no sense to call, because they are only useful on output and their
 behavior on the pattern side is unpredictable.
 
@@ -141,6 +141,7 @@ Macro names can be ordinary names or have a `^` in front of them.
 The arguments must always begin with `^`. 
 
 The definition ends with the start of a new top-level declaration or end of file. E.g.
+
 ```
 patternmacro: ^ISHAIRCOLOR(^who)
     ![not never]
@@ -156,16 +157,16 @@ The above patternmacro takes one argument (who we are talking about). After chec
 that the sentence is not in the negative, it uses a choice to consider alternative ways of
 asking what the hair color is. 
 
-The first way matches are you a redhead. 
-The second way matches what is my hair color. 
-The call passes in the value _I_ (which will also match my mine etc in the canonical form). 
+The first way matches `are you a redhead`. 
+The second way matches `what is my hair color`. 
+The call passes in the value `I` (which will also match my mine etc in the canonical form). 
 
 Every place in the macro code where `^who` exists, the actual value passed through will be used.
 
 You cannot omit the `^` prefix in the call. The system has no way to distinguish it
 otherwise.
 
-Whereas most programming language separate their arguments with commas because
+Whereas most programming languages separate their arguments with commas because
 they are reserved tokens in their language, in ChatScript a comma is a normal word. So
 you separate arguments to functions just with spaces.
 
@@ -173,6 +174,7 @@ you separate arguments to functions just with spaces.
 
 When a patternmacro takes a single argument and you want to pass in several, you can
 wrap them in parens to make them a single argument. Or sometimes brackets. E.g.,
+
 ```
 ?: ( ^DoYouDoThis( (play * baseball) ) ) Yes I do
 
@@ -186,7 +188,7 @@ Quoted strings to output macros are treated differently and left in string form 
 
 You can declare a patternmacro to accept a variable number of arguments. You define the
 macro with the maximum and then put "variable" before the argument list. All missing
-arguments will be set to null on the call.
+arguments will be set to `null` on the call.
 
     patternmacro: ^myfn variable (^arg1 ^arg2 ^arg3 ^arg4)
 
@@ -195,12 +197,12 @@ arguments will be set to null on the call.
 You can also declare something dualmacro: which means it can be used in both pattern
 and output contexts.
 
-Patternmacro cannot be passed a factset name. These are not legal calls:
+A patternmacro cannot be passed a factset name. These are not legal calls:
 
     ^mymacro(@0)
     ^mymacro(@0subject)
 
-Do not write code in a pattern macro as though it is an output code. You can't do
+Do not write code in a patternmacro as though it is an output code. You can't do
 
     if (...) {}
 
@@ -232,6 +234,7 @@ Normally you already know that an input was a question because you used the rule
 
 But rejoinders do not have rule types, so if you want to know if something was a question or not, 
 you need to use the `?` keyword. It doesn't change the match position
+
 ```
 t: Do you like germs?
     a: ( ? ) Why are you asking a question instead of answering me?
@@ -272,7 +275,7 @@ But if it is merely in a variable, then the dictionary is unaware of
 the phrase and so `_1?` will not work for it.
 
 
-## Comparison with C++ #define in `dictionarysystem.h`
+## Comparison with C++ #define in `dictionarySystem.h`
 
 You can name a constant from that file as the right hand side of a comparison test by
 prefixing its name with `#`. E.g.,
@@ -285,12 +288,12 @@ Such constants can be done anywhere, not just in a pattern.
 ## Current Topic `~`
 
 Whenever you successfully execute a rule in a topic, that topic becomes a pending topic
-(if the topic is not declared system or nostay). 
+(if the topic is not declared `system` or `nostay`). 
 When you execute a rule, while the rule is obviously in a topic being tested, 
 it is not necessarily a topic that was in use recently.
 
 You can ask if the system is currently in a topic (meaning was there last volley) via `~`. 
-if the topic is currently on the pending list, then the system will match the `~`. E.g.,
+If the topic is currently on the pending list, then the system will match the `~`, e.g.,
 
     u: ( chocolate ~ ) I love chocolate ice cream.
 
@@ -312,11 +315,13 @@ Some words you just know people will get wrong, like _Schrodinger's cat_ or _Sag
 
 You can request a partial match by using an `*` to represent any number of letters (including 0). 
 For example
+
 ```
 u: ( Sag* ) # This matches "Sagittarius" in a variety of misspellings.
 
 u: ( *tor ) # this matches "reactor".
 ```
+
 The `*` can occur in one or more positions and means 0 or more letters match. 
 
 A period can be used to match a single letter (but may not start a wildcardprefix). E.g.,
@@ -328,7 +333,7 @@ the pattern.
     
     u: ( .p* )
     
-is not legal because it may not start with a period.
+is not legal because a pattern may not start with a period.
 
 
 
@@ -337,22 +342,22 @@ is not legal because it may not start with a period.
 Most patterns are easy to understand because what words they look at is usually staring
 you in the face. 
 
-With indirection, you can pass patterndata from other topics, at a cost of obscurity. 
+With indirection, you can pass pattern data from other topics, at a cost of obscurity. 
 Declaring a macro does this. 
 A `^` normally means a macro call (if what follows it is arguments in parens), or a macro argument. 
 The contents of the macro argument are used in the pattern in its place. 
 Macro arguments only exist inside of macros. But macros don't let you write rules, only pieces of rules.
 
 Normally you use a variable directly. `$$tmp = nil` clears the `$$tmp` variable, for
-instance, while `u: ( ) $$tmp` goes home will output the value into the output stream.
+instance, while `u: ( ) $$tmp` will output the value into the output stream.
 The functional user argument lets you pass pattern data from one topic to another.
 
     s: ( are you a _^$var )
 
-The contents of `$var` are used at that point in the pattern. Maybe it is a set being named.
+The contents of `$var` are used at that point in the pattern. Maybe it is a concept set being named.
 Maybe it's a word. You can also do whole expressions, but if you do you will be at risk
 because you won't have the script compiler protecting you and properly formatting your data. 
-See also Advanced Variables.
+See also the ChatScript Advanced Variables manual.
 
 
 ## Setting Match Position - `@_3+` `@_3-`  `@_3`
@@ -390,6 +395,14 @@ and `@_4` must start at word 5 and after it completes then `life` must be the ne
 `(< @_3 is)` implies that `@_3` is at position 1, since `<` says this is sentence start.
 
 
+### Retrying scan `@retry` 
+
+Normally one matches a pattern, performs the output code, and if you want to restart
+the pattern to find the next occurrence of a match, you use ^retry(RULE) or
+^retry(TOPRULE).  Well, if your pattern executes @retry as a token, it will retry on
+its own without needing to execute any output code. Useful in conjunction with
+^testpattern.
+
 ## Backward Wildcards
 
 You can request n words before the current position using `*-n`. For example
@@ -398,9 +411,17 @@ You can request n words before the current position using `*-n`. For example
 
 ## Match Variable assignment in a pattern
 
-Aside from the use of _ to memorize a match, you can directly assign to a match variable either
-a constant word, another matchvar, or a user variable. This is not obviously useful
-normally, but is helpful in conjunction with ^testpattern to return data to a remote CS api user.
+Aside from the use of _ to memorize a match, you can directly assign to any variable from any other value using `:=`.
+You cannot do arithmetic or function calls for these assignments, but you can transfer data to and
+from match variables, regular variables, and system variables.
+
+``` 
+    $value = 5
+    ( _some_test  $value:=5 $value1:=_0 $value2:='_0 $value3:=%time )
+```
+
+This is not obviously useful
+normally, but is helpful in conjunction with `^testpattern` to return data to a remote CS api user.
 
 
 ## Gory details about strings
@@ -429,21 +450,21 @@ If any are not, it can only literally match.
 
 The quote notation is typically used in several situations...
 
-* you are matching a recognized phrase so quoting it emphasizes that
-* what you are matching contains embedded punctuation and you don't want to think
+* You are matching a recognized phrase so quoting it emphasizes that.
 
-About how to tokenize it e.g., _"Mrs. Watson's"_ -- is the period part of Mrs, 
+* What you are matching contains embedded punctuation and you don't want to think
+about how to tokenize it e.g., _"Mrs. Watson's"_ -- is the period part of Mrs, 
 is the `'` part of _Watson_, etc. Easier just to use quotes and let the system handle it.
 
 * You want to use a phrase inside `[]` or `{}` choices. Like `[ like live "really enjoy" ]`
 
 In actuality, when you quote something, the system generates a correctly tokenized set of
 words and joins them with underscores into a single word. There is no real difference
-between _"go back"_ and _go_back_ in a pattern.
+between `"go back"` and `go_back` in a pattern.
 
 But compared to just listing the words in sequence in your pattern, a quoted expression
-cannot handle optional choices of words. You can't write `go {really almost} back`
-where that can match _go back_ or _go almost back_. 
+cannot handle optional choices of words. You can't write `"go {really almost} back"`
+where that can match `go back` or `go almost back`. 
 
 So there is that limitation when using a string inside `[ ]` or `{ }`. 
 But, one can write a pattern for that.  While `[ ]` means a choice of words and `{ }` 
@@ -463,7 +484,7 @@ As a side note, the quoted expression is faster to match than the `( )` one. Tha
 the cost of matching is linear in the number of items to test. And a quoted expression (or
 the `_` equivalent) is a single item, whereas ( take charge) is 4 items. 
 
-So the first rule will below will match faster than the second rule:
+So the first rule below will match faster than the second rule:
 
     u: ( "I love you today when" )
 
@@ -482,7 +503,7 @@ what concepts it belongs to, picking a concept that most broadly expresses your 
 
 The system will show you both concepts and topics that encompass the word. Because
 topics are more unreliable (contain or may in the future contain words not appropriate to
-your generalization, topics are always shown a `T~` rather than the mere `~name`.
+your generalization, topics are always shown as `T~name` rather than the mere `~name`.
 
 
 ## The deep view of patterns
@@ -497,8 +518,8 @@ and topic names which have those words as keywords.
 And all parser determined pos-tag and parser roles of words.
 
 It gets interesting because marks can also cover a sequential range of locations. That's
-how the system detects phrases as keywords, idioms from the parser like I am a little bit
-crazy (where a little bit is an adverb covering 3 sentence locations) and contiguous
+how the system detects phrases as keywords, idioms from the parser like _I am a little bit
+crazy_ (where _a little bit_ is an adverb covering 3 sentence locations) and contiguous
 phrasal verbs.
 
 And there are functions you can call to set or erase marks on your own (`^mark` and `^unmark`).
@@ -561,11 +582,13 @@ unlike the ones bound to matches from input. So you can use
 in a script before any uses of `_bettername`, which now mean `_12`.
 
 Also, although whenever you start to execute a rule's pattern the match variables
-start memorizing at _0, you can change that. All you have to do is 
+start memorizing at `_0`, you can change that. All you have to do is 
 something like this:
+
 ```
 u: (^eval(_9 = null)  I love _~meat)
 ```
+
 The act of setting _9 to a value automatically makes the system set
 the next variable, so future memorizations start at _10.  Equivalently,
 there is `^setwildcardindex`
@@ -582,18 +605,18 @@ Then `[ ]` quits. So if you have a pattern like:
 
     u: ( the * [bear raccoon] ate )
 
-and an input like _the raccoon at the bear_, then matching would proceed as
+and an input like _the raccoon ate the bear_, then matching would proceed as
 
-* find the word the (position 1 in sentence)
-* try to find bear starting at position 2 – found at position 5
-* try to find the word ate starting at position 6 – fails
+* find the word `the` (position 1 in sentence)
+* try to find `bear` starting at position 2 found at position 5
+* try to find the word `ate` starting at position 6 fails
 
-The system is allowed to backtrack and see if the first match can be made later. So it will
-try to find the later than position one. It would succeed in relocating it to position 4. 
+The system is allowed to backtrack and see if the first match, for `the` can be made later. So it will
+try to find the match later than position 1. It would succeed in relocating it to position 4. 
 
-It would then try to find the word bear afterwards, and succeed at position 5. It would then
-try to find the word ate after that and fail. It would retry trying to reset the pattern to
-find the after position 4 and fail. The match fails.
+It would then try to find the word `bear` afterwards, and succeed at position 5. It would then
+try to find the word `ate` after that and fail. It would retry trying to reset the pattern to
+find the match for `the` after position 4 and fail. The match fails.
 
 You can fix this ordering problem by making a concept set of the contents of the `[ ]`, and
 replacing the `[ ]` with the name of the concept set. 

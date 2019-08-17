@@ -167,15 +167,23 @@ static char* IsJsonNumber(char* str)
 	return NULL;
 }
 
-static bool ConvertUnicode(char* str) // convert \uxxxx to utf8
+static bool ConvertUnicode(char* str) // convert \uxxxx to utf8  and escaped characters to normal
 {
 	char* at = str;
 	bool converted = false;
 	while ((at = strchr(at, '\\')))
 	{
-		char* base = at;
-		++at;
-		if (*at != 'u') continue;
+		char* base = at++; // base is start of escaped string
+        if (*at != 'u')
+        {
+            if (*at  == '"' || *at == '\\') // json escaped \" stuff is not escaped in CS
+            {
+                memmove(base, at, strlen(base)); // skip over the escaped char (in case its a \)
+                at = base + 1;
+                converted = true;
+            }
+            continue;
+        }
 
 		int value = 0;
 		char c = GetLowercaseData(*++at);
@@ -348,10 +356,10 @@ int factsJsonHelper(char *jsontext, jsmntok_t *tokens, int tokenlimit, int sizel
 		break;
 	}
 	default: 
-		char* str = AllocateBuffer(); // cant use InfiniteStack because ReportBug will.
+		char* str = AllocateBuffer("jsmn default"); // cant use InfiniteStack because ReportBug will.
 		strncpy(str,jsontext + curr.start,size);
 		str[size] = 0;
-		FreeBuffer();
+		FreeBuffer("jsmn default");
 		ReportBug((char*)"FATAL: (factsJsonHelper) Unknown JSON type encountered: %s",str);
 	} 
 	currentFact = NULL;
@@ -560,7 +568,7 @@ char* UrlEncodePiece(char* input)
 	CURL * curl = curl_easy_init();
 	if (!curl)
 	{
-		if (trace & TRACE_JSON) Log(STDTRACELOG,(char*)"Curl easy init failed");
+		if (trace & TRACE_JSON) Log(STDUSERLOG,(char*)"Curl easy init failed");
 		return NULL;
 	}
 	char* fixed = curl_easy_escape(curl,input,0);
@@ -735,7 +743,7 @@ FunctionResult JSONOpenCode(char* buffer)
 
 	// Make sure the raw extra REQUEST headers parameter value is not empty and
 	//  not the ChatScript empty argument character.
-	if (strlen(extraRequestHeadersRaw) > 0)
+	if (*extraRequestHeadersRaw)
 	{
 		// If the parameter value is only 1 characters long and it is a question mark,
 		//  then ignore it since it's the "placeholder" (i.e. - "empty") parameter value
@@ -762,7 +770,7 @@ FunctionResult JSONOpenCode(char* buffer)
 	CURL * curl = curl_easy_init();
 	if (!curl)
 	{
-		if (trace & TRACE_JSON) Log(STDTRACELOG, (char*)"Curl easy init failed");
+		if (trace & TRACE_JSON) Log(STDUSERLOG, (char*)"Curl easy init failed");
 		return FAILRULE_BIT;
 	}
 
@@ -772,11 +780,11 @@ FunctionResult JSONOpenCode(char* buffer)
 
 	if (trace & TRACE_JSON)
 	{
-		Log(STDTRACELOG, (char*)"\r\n");
+		Log(STDUSERLOG, (char*)"\r\n");
 		Log(STDTRACETABLOG, (char*)"Json method/url: %s %s\r\n", raw_kind, fixedUrl);
 		if (kind == 'P' || kind == 'U')
 		{
-			Log(STDTRACELOG, (char*)"\r\n");
+			Log(STDUSERLOG, (char*)"\r\n");
 			len = strlen(arg);
 			if (len < (size_t)(logsize - SAFE_BUFFER_MARGIN)) Log(STDTRACETABLOG, (char*)"Json  data %d bytes: %s\r\n ", len, arg);
 			else Log(STDTRACETABLOG, (char*)"Json  data %d bytes\r\n ", len);
@@ -878,7 +886,7 @@ FunctionResult JSONOpenCode(char* buffer)
 
 	if (trace & TRACE_JSON)
 	{
-		Log(STDTRACELOG, (char*)"\r\n");
+		Log(STDUSERLOG, (char*)"\r\n");
 		curl_slist* list = header;
 		while (list)
 		{
@@ -959,7 +967,7 @@ FunctionResult JSONOpenCode(char* buffer)
 		if (res == CURLE_URL_MALFORMAT) { ReportBug((char*)"\r\nJson url malformed %s",word); }
 		else if (res == CURLE_GOT_NOTHING) { ReportBug((char*)"\r\nCurl got nothing %s",word); }
 		else if (res == CURLE_UNSUPPORTED_PROTOCOL) { ReportBug((char*)"\r\nCurl unsupported protocol %s",word); }
-		else if (res == CURLE_COULDNT_CONNECT || res == CURLE_COULDNT_RESOLVE_HOST || res ==  CURLE_COULDNT_RESOLVE_PROXY) Log(STDTRACELOG,(char*)"\r\nJson connect failed ");
+		else if (res == CURLE_COULDNT_CONNECT || res == CURLE_COULDNT_RESOLVE_HOST || res ==  CURLE_COULDNT_RESOLVE_PROXY) Log(STDUSERLOG,(char*)"\r\nJson connect failed ");
 		else if (res == CURLE_OPERATION_TIMEDOUT) { ReportBug((char*)"\r\nCurl timeout ") }
 		else
 		{ 
@@ -1007,9 +1015,9 @@ FunctionResult JSONOpenCode(char* buffer)
 	}
 	if (trace & TRACE_JSON)
 	{
-		Log(STDTRACELOG,(char*)"\r\n");
+		Log(STDUSERLOG,(char*)"\r\n");
 		Log(STDTRACETABLOG,(char*)"\r\nJSON response: %d size: %d - ",http_response,output.size);
-		if (output.size < (size_t)(logsize - SAFE_BUFFER_MARGIN)) Log(STDTRACELOG,(char*)"%s\r\n",output.buffer);
+		if (output.size < (size_t)(logsize - SAFE_BUFFER_MARGIN)) Log(STDUSERLOG,(char*)"%s\r\n",output.buffer);
 		Log(STDTRACETABLOG,(char*)"");
 	}
 	if (curlBufferBase) ReleaseStack(curlBufferBase);
@@ -1129,7 +1137,7 @@ static char* jwritehierarchy(bool log,bool defaultZero, int depth, char* buffer,
 	if (!(subject&(JSON_ARRAY_VALUE|JSON_OBJECT_VALUE)))
 	{
 		if (subject & JSON_STRING_VALUE) *buffer++ = '"';
-		if (subject & JSON_STRING_VALUE) AddEscapes(buffer,D->word,true,currentOutputLimit - (buffer - currentOutputBase));
+		if (subject & JSON_STRING_VALUE) AddEscapes(buffer,D->word,true,currentOutputLimit - (buffer - currentOutputBase),false);
 		else strcpy(buffer,D->word);
 		buffer += strlen(buffer);
 		if (subject & JSON_STRING_VALUE) *buffer++ = '"';
@@ -1304,7 +1312,7 @@ static FunctionResult JSONpath(char* buffer, char* path, char* jsonstructure, bo
 	MEANING M;
 	if (trace & TRACE_JSON) 
 	{
-		Log(STDTRACELOG,(char*)"\r\n");
+		Log(STDUSERLOG,(char*)"\r\n");
 		Log(STDTRACETABLOG,(char*)"");
 	}
 
@@ -1477,7 +1485,7 @@ char* jwrite(char* buffer, WORDP D, int subject )
 			return buffer + strlen(buffer);
 		}
 		if (subject & JSON_STRING_VALUE) strcpy(buffer++,(char*)"\"");
-		if (subject & JSON_STRING_VALUE) AddEscapes(buffer,D->word,true,currentOutputLimit - (buffer - currentOutputBase));
+		if (subject & JSON_STRING_VALUE) AddEscapes(buffer,D->word,true,currentOutputLimit - (buffer - currentOutputBase),false);
 		else strcpy(buffer,D->word);
 		buffer += strlen(buffer);
 		if (subject & JSON_STRING_VALUE) strcpy(buffer++,(char*)"\"");
@@ -1667,6 +1675,11 @@ FunctionResult JSONParseCode(char* buffer)
 		bool quote = false;
 		while (*++at)
 		{
+            if (*at == '\\') 
+            {
+                ++at;
+                continue; // escaped
+            }
 			if (quote)
 			{
 				if (*at == '"' && at[-1] != '\\') quote = false; // turn off quoted expr
@@ -2004,12 +2017,12 @@ FunctionResult JSONVariableAssign(char* word,char* value)
 	char* val = GetUserVariable(word); // gets the initial variable (must be a variable)
 	if (c == '.' && strnicmp(val,"jo-",3))
     { 
-        if (trace & TRACE_VARIABLESET) Log(STDTRACELOG, "AssignFail Object: %s->%s\r\n", word, val);
+        if (trace & TRACE_VARIABLESET) Log(STDUSERLOG, "AssignFail Object: %s->%s\r\n", word, val);
 		return FAILRULE_BIT;	// not a json object
     }
     else if (c == '[' && strnicmp(val, "ja-", 3))
     {
-        if (trace & TRACE_VARIABLESET) Log(STDTRACELOG, "AssignFail Array: %s->%s\r\n", word, val);
+        if (trace & TRACE_VARIABLESET) Log(STDUSERLOG, "AssignFail Array: %s->%s\r\n", word, val);
         return FAILRULE_BIT;	// not a json array
     }
     bool bootfact = (val[3] == 'b');
@@ -2018,10 +2031,20 @@ FunctionResult JSONVariableAssign(char* word,char* value)
 	WORDP leftside = FindWord(val);
     if (!leftside)
     {
-        if (trace & TRACE_VARIABLESET) Log(STDTRACELOG, "AssignFail key: %s\r\n", word);
+        if (trace & TRACE_VARIABLESET) Log(STDUSERLOG, "AssignFail key: %s\r\n", word);
         return FAILRULE_BIT;	// doesnt exist?
     }
     WORDP base = FindWord(word);
+
+    if (testExternOutput && base->word[1] != '$' && base->word[1] != '_') // track we changed this
+    { 
+        char** heapval = (char**)AllocateHeap(NULL, 3, sizeof(char*), false);
+        ((unsigned int*)heapval)[0] = variableChangedThreadlist;
+        variableChangedThreadlist = Heap2Index((char*)heapval);
+        heapval[1] = (char*)base; // save name
+        heapval[2] = base->w.userValue; // save old value
+    }
+
 
 	// leftside is the left side of a . or [] operator
 	
@@ -2048,12 +2071,11 @@ LOOP: // now we look at $x.key or $x[0]
 	WORDP keyname;
 	char keyx[MAX_WORD_SIZE];
 	strcpy(keyx,separator+1);
-	if (*keyx == '$') // indirection key user variable
+	if (*keyx == '$' ) // indirection key user variable
 	{
-		char* answer = GetUserVariable(keyx);
+        char* answer = GetUserVariable(keyx);
 		strcpy(keyx,answer);
-		if (!*keyx) 
-			return FAILRULE_BIT;
+		if (!*keyx)  return FAILRULE_BIT;
 	}
     else if ((*keyx == '_' && IsDigit(keyx[1])) || (*keyx == '\'' && keyx[1] == '_' && IsDigit(keyx[2]))) // indirection key match variable
     {
@@ -2063,6 +2085,7 @@ LOOP: // now we look at $x.key or $x[0]
         if (!*keyx)
             return FAILRULE_BIT;
     }
+    else if (*keyx == '\\' && keyx[1] == '$') memmove(keyx, keyx + 1, strlen(keyx));
 	// now we have retrieved the key/index
 	if (*keyx == ']') keyname = NULL;  // [] use
 	else keyname =  StoreWord(keyx,AS_IS);  // key indexing
@@ -2171,6 +2194,7 @@ LOOP: // now we look at $x.key or $x[0]
 
 	MEANING object = MakeMeaning(leftside);
 	MEANING key = MakeMeaning(keyname);
+    int index = (keyname) ? atoi(keyname->word) : 0;
 	MEANING valx = 0;
 	if (key && stricmp(value, "null")) valx = jsonValue(value, flags);// not deleting using json literal   ^"" or "" would be the literal null in json
 
@@ -2179,7 +2203,7 @@ LOOP: // now we look at $x.key or $x[0]
 	FACT* F = GetSubjectNondeadHead(leftside);
 	while (F)	// already there, delete it if not referenced elsewhere
 	{
-		if (F->verb == key)
+		if (F->verb == key || index == -1 )
 		{
 			if (F->object == valx) break; // already here
 			if (stricmp(value, "null") && !(F->flags & (JSON_OBJECT_VALUE | JSON_ARRAY_VALUE)))
@@ -2248,14 +2272,14 @@ LOOP: // now we look at $x.key or $x[0]
 		callArgumentBase = oldArgumentBase;
 	}
 
-	if (trace & TRACE_VARIABLESET) Log(STDTRACELOG,(char*)"JsonVar: %s -> %s\r\n", fullpath,value);
+	if (trace & TRACE_VARIABLESET) Log(STDUSERLOG,(char*)"JsonVar: %s -> %s\r\n", fullpath,value);
 	
 	if (base->internalBits & MACRO_TRACE) 
 	{
 		char pattern[MAX_WORD_SIZE];
 		char label[MAX_LABEL_SIZE];
 		GetPattern(currentRule,label,pattern,true,100);  // go to output
-		Log(ECHOSTDTRACELOG,"%s -> %s at %s.%d.%d %s %s\r\n",word,value, GetTopicName(currentTopicID),TOPLEVELID(currentRuleID),REJOINDERID(currentRuleID),label,pattern);
+		Log(ECHOSTDUSERLOG,"%s -> %s at %s.%d.%d %s %s\r\n",word,value, GetTopicName(currentTopicID),TOPLEVELID(currentRuleID),REJOINDERID(currentRuleID),label,pattern);
 	}
 
 	currentFact = NULL;	 // used up by putting into json

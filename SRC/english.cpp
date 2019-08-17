@@ -477,7 +477,7 @@ static int64 ProcessNumber(int at, char* original, WORDP& revise, WORDP &entry, 
         if (!value) value = "0"; // eg 100$% faulty number
 
         int64 n = Convert2Integer(value, numberStyle);
-		double fn = Convert2Float(value, numberStyle);
+		double fn = Convert2Double(value, numberStyle);
 		if ((double)n == fn)
 		{
 #ifdef WIN32
@@ -517,7 +517,7 @@ static int64 ProcessNumber(int at, char* original, WORDP& revise, WORDP &entry, 
 
 		if (strchr(original, numberPeriod) || exponent) // floating
 		{
-			double val = Convert2Float(original, numberStyle);
+			double val = Convert2Double(original, numberStyle);
 			if (percent) val /= 100;
 			WriteFloat(number,  val);
 		}
@@ -1444,13 +1444,13 @@ void SetSentenceTense(int start, int end)
 	bool subjectFound = false;
 	if ((trace & TRACE_POS || prepareMode == POS_MODE) && CheckTopicTrace()) 
 	{
-		if (  tmpPrepareMode == POS_MODE || prepareMode == POSVERIFY_MODE  || prepareMode == POSTIME_MODE ) Log(STDTRACELOG,(char*)"Not doing a parse.\r\n");
+		if (  tmpPrepareMode == POS_MODE || prepareMode == POSVERIFY_MODE  || prepareMode == POSTIME_MODE ) Log(STDUSERLOG,(char*)"Not doing a parse.\r\n");
 	}
 
 	// assign sentence type
 	if (!verbStack[MAINLEVEL] || !(roles[verbStack[MAINLEVEL]] &  MAINVERB)) // FOUND no verb, not a sentence
 	{
-		if ((trace & TRACE_POS || prepareMode == POS_MODE) && CheckTopicTrace()) Log(STDTRACELOG,(char*)"Not a sentence\r\n");
+		if ((trace & TRACE_POS || prepareMode == POS_MODE) && CheckTopicTrace()) Log(STDUSERLOG,(char*)"Not a sentence\r\n");
 		if (tokenFlags & (QUESTIONMARK|EXCLAMATIONMARK)) {;}
 		else if (posValues[startSentence] & AUX_VERB
             && !(posValues[startSentence+1] & TO_INFINITIVE)) tokenFlags |= QUESTIONMARK;// its a question because AUX starts

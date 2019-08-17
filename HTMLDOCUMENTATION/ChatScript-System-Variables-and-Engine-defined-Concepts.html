@@ -9,7 +9,7 @@
 </head>
 <body>
 <h1 id="chatscript-system-variables-and-engine-defined-concepts">ChatScript System Variables and Engine-defined Concepts</h1>
-<p>© Bruce Wilcox, gowilcox@gmail.com www.brilligunderstanding.com <br>Revision 3/24/2019 cs9.2</p>
+<p>© Bruce Wilcox, gowilcox@gmail.com www.brilligunderstanding.com <br>Revision 7/14/2019 cs9.6</p>
 <ul>
 <li><a href="ChatScript-System-Variables-and-Engine-defined-Concepts.html#engine-defined-concepts">Engine-defined Concepts</a></li>
 <li><a href="ChatScript-System-Variables-and-Engine-defined-Concepts.html#system-variables">System Variables</a></li>
@@ -552,6 +552,10 @@
 <td><code>~modelnumber</code></td>
 <td>not a true number, but a word with both alpha and numeric</td>
 </tr>
+<tr class="even">
+<td><code>~filename</code></td>
+<td>looks like a filename with extension</td>
+</tr>
 </tbody>
 </table>
 <p>To can be a preposition or it can be special. When used in the infinitive phrase To go, it is marked <code>~to_infinitive</code> and is followed by <code>~noun_infinitive</code>.</p>
@@ -773,14 +777,18 @@
 <td>hh:mm in military 24-hour time</td>
 </tr>
 <tr class="odd">
+<td><code>%zulutime</code></td>
+<td>2016-07-27T11:38:35.253Z</td>
+</tr>
+<tr class="even">
 <td><code>%week</code></td>
 <td>1-5 (week of the month)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>%year</code></td>
 <td>e.g., 2011</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>%rand</code></td>
 <td>get a random number from 1 to 100 inclusive</td>
 </tr>
@@ -869,22 +877,26 @@
 <td>Boolean does it seem like a sentence (subject/verb or command)</td>
 </tr>
 <tr class="even">
+<td><code>%tableinput</code></td>
+<td>current line being executed in a table expansion during script compilation</td>
+</tr>
+<tr class="odd">
 <td><code>%tense</code></td>
 <td>past , present, or future simple tense (present perfect is a past tense)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>%user</code></td>
 <td>user login name supplied</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>%userfirstline</code></td>
 <td>value of <code>%input</code> that is at the start of this conversation start</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>%userinput</code></td>
 <td>Boolean is the current input from the user (vs the chatbot)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>%voice</code></td>
 <td>active or passive on current input</td>
 </tr>
@@ -1341,7 +1353,7 @@ s: (name is _*)
 </tr>
 <tr class="even">
 <td><code>$cs_control_pre</code></td>
-<td>name of topic to run in gambit mode on pre-pass, set by author. Runs before any sentences of the input volley are analyzed. Good for setting up initial values</td>
+<td>name of topic (flag it SYSTEM) to run in gambit mode on pre-pass, set by author. Runs before any sentences of the input volley are analyzed. Good for setting up initial values</td>
 </tr>
 <tr class="odd">
 <td><code>$cs_usermessagelimit</code></td>
@@ -1353,15 +1365,15 @@ s: (name is _*)
 </tr>
 <tr class="odd">
 <td><code>$cs_prepass</code></td>
-<td>name of a topic to run in responder mode on main volleys, which runs before $cs_control_main and after all of the above and pos-parsing is done. Used to amend preparation data coming from the engine. You can use it to add your own spin on input processing before going to your main control. I use it to, for example, label commands as questions, standardize sentence construction (like <em>if you see me what will you think</em> to <em>assume you see me. What will you think?</em>)</td>
+<td>name of a topic (mark it SYSTEM) to run in responder mode on main volleys, which runs before $cs_control_main and after all of the above and pos-parsing is done. Used to amend preparation data coming from the engine. You can use it to add your own spin on input processing before going to your main control. I use it to, for example, label commands as questions, standardize sentence construction (like <em>if you see me what will you think</em> to <em>assume you see me. What will you think?</em>)</td>
 </tr>
 <tr class="even">
 <td><code>$cs_control_main</code></td>
-<td>name of topic to run in responder mode on main volleys, set by author</td>
+<td>name of topic (flag it SYSTEM) to run in responder mode on main volleys, set by author</td>
 </tr>
 <tr class="odd">
 <td><code>$cs_control_post</code></td>
-<td>name of topic to run in gambit mode on post-pass, set by author</td>
+<td>name of topic (flag it SYSTEM) to run in gambit mode on post-pass, set by author</td>
 </tr>
 <tr class="even">
 <td><code>$botprompt</code></td>

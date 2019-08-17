@@ -46,8 +46,8 @@ void DumpSystemVariables()
 			else if (strstr(sysvars[i].comment,(char*)"Numeric")) result = "0";
 			else result = "null";
 		}
-		if (sysvars[i].address) Log(STDTRACELOG,(char*)"%s = %s - %s\r\n",sysvars[i].name, result,sysvars[i].comment);  // actual variable
-		else Log(STDTRACELOG,(char*)"%s\r\n",sysvars[i].name);  // header
+		if (sysvars[i].address) Log(STDUSERLOG,(char*)"%s = %s - %s\r\n",sysvars[i].name, result,sysvars[i].comment);  // actual variable
+		else Log(STDUSERLOG,(char*)"%s\r\n",sysvars[i].name);  // header
 	}
 }
 
@@ -141,7 +141,7 @@ static char* SFullTimeMS(char* value)
     if (value) return AssignValue(hold, value);
     if (*hold != '.') return hold;
     uint64 elapsedMS = ElapsedMilliseconds();
-    sprintf(systemValue, (char*)"%u", (unsigned int)elapsedMS);
+    sprintf(systemValue, (char*)"%llu", elapsedMS);
     return systemValue;
 }
 
@@ -294,8 +294,9 @@ static char* Szulutime(char* value)
 	if (*hold != '.') return hold;
 	struct tm ptm;
     GetTimeInfo(&ptm,true,true);
-	sprintf(systemValue,(char*)"%d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.0Z",ptm.tm_year+1900,ptm.tm_mon+1,ptm.tm_mday,
-		ptm.tm_hour,ptm.tm_min,ptm.tm_sec);
+    uint64 elapsedMS = ElapsedMilliseconds();
+	sprintf(systemValue,(char*)"%d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3dZ",ptm.tm_year+1900,ptm.tm_mon+1,ptm.tm_mday,
+		ptm.tm_hour,ptm.tm_min,ptm.tm_sec, elapsedMS%1000);
     return systemValue;
 }
 
@@ -440,6 +441,14 @@ static char* Sdict(char* value)
 	if (*hold != '.') return hold;
 	sprintf(systemValue,(char*)"Dictionary: %s",dictionaryTimeStamp);
     return systemValue;
+}
+
+static char* StableInput(char* value)
+{
+    static char hold[50] = ".";
+    if (value) return AssignValue(hold, value);
+    if (*hold != '.') return hold;
+    return (tableinput) ? tableinput : (char*)"";
 }
 
 static char* SfactExhaustion(char* value)
@@ -1065,8 +1074,10 @@ SYSTEMVARIABLE sysvars[] =
 	{ (char*)"%pid",SPID,(char*)"Process id of this instance (linux)"}, 
 	{ (char*)"%restart",SRestart,(char*)"pass string back to a restart"}, 
 	{ (char*)"%timeout",STimeout,(char*)"did system time out happen" },
+
 	{ (char*)"\r\n---- Build variables",0,(char*)""},
-	{ (char*)"%dict",Sdict,(char*)"String - when dictionary was built"}, 
+    { (char*)"%tableinput",StableInput,(char*)"Current input line of table processing" },
+    { (char*)"%dict",Sdict,(char*)"String - when dictionary was built"},
 	{ (char*)"%engine",Sengine,(char*)"String - when engine was compiled (date/time)"}, 
 	{ (char*)"%os",Sos,(char*)"String - os involved: linux windows mac ios"}, 
 	{ (char*)"%script",Sscript,(char*)"String - when build1 and build0 were compiled)"}, 

@@ -46,22 +46,26 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 </head>
 <body>
 <h1 id="chatscript-json-manual">ChatScript JSON Manual</h1>
-<p>© Bruce Wilcox, mailto:gowilcox@gmail.com www.brilligunderstanding.com <br>Revision 3/24/2019 cs9.2</p>
+<p>© Bruce Wilcox, mailto:gowilcox@gmail.com www.brilligunderstanding.com <br>Revision 7/14/2019 cs9.6</p>
 <h1 id="real-world-json">Real World JSON</h1>
-<p>JSON (JavaScript Object Notation) is an open standard format using human-readable text to transmit data objects over the web. It is a common standard largely replacing XML which is too wordy and hard to read. JSON has two datatypes that represents collections of values, the array and the object. A JSON array is a list of JSON entities separated by commas and placed within <code>[]</code>, e.g.,</p>
-<pre><code>[ A 2 [ help life] [] ]</code></pre>
-<p>Indices of an array start at 0, so the above has as values: [0] = A [1] = 2 [2] = an array of 2 values [3] = an empty array</p>
-<p>Note that arrays can hold values of different types (since really everything internally is a text type). The JSON types are array, object, number, string (enclosed in doublequotes), and primitives (text without doublequotes that cannot contain any whitespace). Array values are ordered and always retain that order. A JSON object is a list of key-value pairs separated by commas and placed within {}, e.g.,</p>
+<p>JSON (JavaScript Object Notation) is an open standard format using human-readable text to transmit data objects over the web. It is a common standard largely replacing XML which is too wordy and hard to read. JSON has two datatypes that represent collections of values, the array and the object. A JSON array is a list of JSON entities separated by commas and placed within square brackets <code>[]</code>, e.g.,</p>
+<pre><code>[ A, 2, [ help, life], [] ]</code></pre>
+<p>Indices of an array start at 0, so the above has as values:</p>
+<pre><code>[0] = A 
+[1] = 2 
+[2] = an array of 2 values 
+[3] = an empty array</code></pre>
+<p>Note that arrays can hold values of different types (since really everything internally is a text type). The JSON types are array, object, number, string (enclosed in doublequotes), and primitives (text without doublequotes that cannot contain any whitespace). Array values are ordered and always retain that order. A JSON object is a list of key-value pairs separated by commas and placed within curly braces <code>{}</code>, e.g.,</p>
 <div class="sourceCode"><pre class="sourceCode json"><code class="sourceCode json"><span class="fu">{</span> 
     <span class="dt">&quot;key1&quot;</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span> 
     <span class="dt">&quot;bob&quot;</span><span class="fu">:</span> <span class="st">&quot;help&quot;</span><span class="fu">,</span> 
     <span class="dt">&quot;1&quot;</span><span class="fu">:</span> <span class="dv">7</span><span class="fu">,</span> 
-    <span class="dt">&quot;array&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1</span> <span class="dv">2</span> <span class="dv">3</span><span class="ot">]</span><span class="fu">,</span>
+    <span class="dt">&quot;array&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1</span><span class="ot">,</span> <span class="dv">2</span><span class="ot">,</span> <span class="dv">3</span><span class="ot">]</span><span class="fu">,</span>
     <span class="dt">&quot;object12&quot;</span><span class="fu">:</span> <span class="fu">{}</span> 
 <span class="fu">}</span></code></pre></div>
 <p>Each key must be encased in quotes and joined to an ending colon. Whitespace separates the colon from the value. Again types can be mixed in the values. <code>{}</code> is the empty object. Key-value pairs have no guaranteed order and may shuffle around if you manipulate the structure. You can nest arrays and objects inside each other.</p>
 <h1 id="chatscript-json">ChatScript &amp; JSON</h1>
-<p>JSON is an excellent language to represent more complex ChatScript facts as well as interact with the web. ChatScript can convert back and forth between JSON the text string passed over the web and ChatScript facts that represent the structure internally. If you tried to create facts using ^CreateFact, you would find making the data shown below extremely difficult and non-obvious. But as JSON, it is easy to create facts to represent the structure and to access pieces of it.</p>
+<p>JSON is an excellent language to represent more complex ChatScript facts as well as interact with the web. ChatScript can convert back and forth between the JSON text string passed over the web and ChatScript facts that represent the structure internally. If you tried to create facts using ^createfact(), you would find making the data shown below extremely difficult and non-obvious. But as JSON, it is easy to create facts to represent the structure and to access pieces of it.</p>
 <div class="sourceCode"><pre class="sourceCode json"><code class="sourceCode json"><span class="fu">{</span>
     <span class="dt">&quot;firstName&quot;</span><span class="fu">:</span> <span class="st">&quot;John&quot;</span><span class="fu">,</span>
     <span class="dt">&quot;lastName&quot;</span><span class="fu">:</span> <span class="st">&quot;Smith&quot;</span><span class="fu">,</span>
@@ -87,7 +91,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <span class="fu">}</span></code></pre></div>
 <p>Note that JSON has no mechanism for sharing JSON subtrees. Hence anytime you create a JSON fact structure in CS, the facts will all be unique.</p>
 <h2 id="accessing-the-web-with-json">Accessing the web with JSON</h2>
-<p>You will learn how to create JSON structures below. The other key to a web-enabled CS is ^jsonopen. To see how easy it is to talk to the web, just look at this code.</p>
+<p>You will learn how to create JSON structures below. The other key to a web-enabled CS is ^jsonopen(). To see how easy it is to talk to the web, just look at this code.</p>
 <pre><code># The cleanest way to build json data
 $_var = ^jsoncreate(transient object)
 $_var.fieldname = $myvar 
@@ -101,13 +105,13 @@ $_userAgent = ^&quot;User-Agent: %bot, ChatScript”
 $_header = ^&quot; ~Accept: application/json 
                   $_userAgent
                   ~Content-Type: application/json &quot;
-$_response = ^jsonopen(transient POST $_url $_data $_header $_userAgent) </code></pre>
+$_response = ^jsonopen(transient POST $_url $_var $_header $_userAgent) </code></pre>
 <h2 id="jsonflags---optional-1st-arg-to-some-json-routines">JSONFLAGS - Optional 1st arg to some JSON routines</h2>
 <p>Routines that will create facts for JSON will by default create them as transients (they die at end of volley unless you work to save them). You can override this default by saying <code>permanent</code> or <code>transient</code> or <code>boot</code>. This applies to <code>^jsonopen</code>, <code>^jsonparse</code>, <code>^jsoncreate</code>, <code>^jsonobjectinsert</code>, <code>^jsonarrayinsert</code>, <code>^jsoncopy</code>.</p>
-<p>JsonArrays all start with the name 'ja-' and jsonobjects all start with the name 'jo-'. The next letter indicates the storage media. 't' means transient and the structure dies at the end of the volley. 'b' means boot and the data moves to the boot later at the end of the volley. Anything else (e.g. an immediate digit) means the structure is permanent and is stored in the user's topic file.</p>
+<p>Json arrays all start with the name 'ja-' and json objects all start with the name 'jo-'. The next letter indicates the storage media. 't' means transient and the structure dies at the end of the volley. 'b' means boot and the data moves to the boot later at the end of the volley. Anything else (e.g. an immediate digit) means the structure is permanent and is stored in the user's topic file.</p>
 <p>Any facts moved to the boot layer will be lost if the server restarts, unless you have a command line parameter <code>recordboot</code>, in which case the json facts with boot media will be written to a top-level file <code>bootfacts.txt</code> at the same time they are copied to boot layer. You will probably then also want to write a boot function that uses ^importfact to read back these facts on server startup.</p>
-<p>Changing the content of boot json facts (e.g. `$data.value += 1) may create abandoned data in the boot layer (the old value of $data.value) and do this often enough and you may run out of memory since there is no way to reclaim it.</p>
-<p>You can also add a flag <code>safe</code> to <code>^jsonparse</code>, <code>^jsonobjectinsert</code>, <code>^jsonarraydelete</code>. You can also add a flag <code>unique</code> to <code>^jsonarrayinsert</code>. You can also add <code>duplicate</code> to ^jsonobjectinsert.</p>
+<p>Changing the content of boot json facts (e.g. <code>$data.value += 1</code>) may create abandoned data in the boot layer (the old value of $data.value) and do this often enough and you may run out of memory since there is no way to reclaim it.</p>
+<p>You can also add a flag <code>safe</code> (described later) to <code>^jsonparse</code>, <code>^jsonobjectinsert</code>, <code>^jsonarraydelete</code>. You can also add a flag <code>unique</code> to <code>^jsonarrayinsert</code>. You can also add <code>duplicate</code> to ^jsonobjectinsert.</p>
 <p>When multiple flags are desired, put them into a simple string, <code>&quot;DUPLICATE PERMANENT&quot;</code>. Case doesn't matter.</p>
 <p>When you want to add a reference to a normal factid (as is returned by ^createfact) you can add the flag <code>AUTODELETE</code></p>
 <p>You can also assign user flags by listing <code>USER_FLAG1</code>, through <code>USER_FLAG4</code> as a flag as well. The JSON fact will have that flag on it, which you can use in conjunction with <code>^query</code> to limit what matches can be found.</p>
@@ -120,7 +124,7 @@ $_response = ^jsonopen(transient POST $_url $_data $_header $_userAgent) </code>
 <p>Note that the above names are true only for PERMANENT JSON objects. Transient ones will be named like <code>ja-t0</code> and <code>jo-t0</code>.</p>
 <p>As new JSON composites are created during a volley, the numbers increase to keep them all distinct. JSON composites are all created as transient facts and will die at the end of the volley unless you do something to explictly keep them (typically <code>^jsongather</code> into some factset and then saving that OR using that to remove all their transient flags OR using <code>^delete()</code> to destroy the facts in the set).</p>
 <p>If you are keeping JSON across volleys, you should use the optional Json flags argument to make sure numbering never collides (normally the numbers start back at 0 for each new volley).</p>
-<p>JSON has stricter requirements on its format than CS does.</p>
+<p>Real world JSON has stricter requirements on its format than CS does.</p>
 <p>While CS will output strict JSON, you can input slack JSON. You do not need to put commas between elements of an array or object. And you do not need to put quotes around a key name. So the following is legal text form:</p>
 <pre><code>[a b {bob: 1 sue: 2}]</code></pre>
 <p>Formally JSON has specific primitives named true, false, and null, that systems may care about, but to CS they are nothing special. Numbers in JSON can be integer or have a decimal point and an exponent. CS does not currently support exponent notation, so you can only do: <code>1325</code> or <code>566.23</code>.</p>
@@ -133,7 +137,8 @@ $_response = ^jsonopen(transient POST $_url $_data $_header $_userAgent) </code>
 <p>where you wanted the value of <code>b</code> to be <code>&quot;_0aba&quot;</code>. Had you used an active string, the _0 would have been replaced with its contents.</p>
 <p>Also, you can use json dereference operators to take apart an existing json structure and use values of it in the current one. If $_y points to a json structure, then</p>
 <pre><code>^jsonparse(&quot;{ a: $var, b: $_y.e[2] }&quot;)</code></pre>
-<p>would find a json object reference on <code>$_y</code>, get the e field, and get the 3rd array value found there. An initial argument of safe will locate the correct end of the data for json parsing, allowing you to pass excess data. This is important for passing in json data in OOB information. OOB information comes in <code>[]</code> and Json itself uses <code>[]</code> at times, so it would be impossible to find the correct end of pattern with normal pattern matching. Instead just do:</p>
+<p>would find a json object reference on <code>$_y</code>, get the e field, and get the 3rd array value found there.</p>
+<p>An initial argument of <code>safe</code> will locate the correct end of the data for json parsing, allowing you to pass excess data. This is important for passing in json data in OOB information. OOB information comes in <code>[]</code> and Json itself uses <code>[]</code> at times, so it would be impossible to find the correct end of pattern with normal pattern matching. Instead just do:</p>
 <pre><code>u: ( \[ _* ) and call ^jsonparse(safe _0)</code></pre>
 <p>This will figure out where the OOB marker actually is and only parse within it. You can add NOFAIL before the string argument, to tell it to return null but not fail if a dereference path fails cannot be found.</p>
 <pre><code>^jsonparse(transient NOFAIL &quot;{ a: $var, b: _0.e[2] }&quot;)</code></pre>
@@ -149,39 +154,9 @@ $_response = ^jsonopen(transient POST $_url $_data $_header $_userAgent) </code>
 <h2 id="jsonformatstring"><code>jsonformat</code>(string)</h2>
 <p>Because technically JSON requires you put quotes around field names (though various places ignore that requirement) and because CS doesn't, the function takes in a slack json text string and outputs a strict one.</p>
 <h2 id="accessing-json-structures">Accessing JSON structures</h2>
-<h3 id="jsonpath-string-id"><code>^jsonpath</code>( string id )</h3>
-<ul>
-<li><code>string</code> is a description of how to walk JSON.</li>
-<li><code>id</code> is the name of the node you want to start at (typically returned from <code>^jsonopen</code> or <code>^jsonparse</code>).</li>
-</ul>
-<p>Array values are accessed using typical array notation like <code>[3]</code> and object fields using dotted notation. A simple path access might look like this: <code>[1].id</code> which means take the root object passed as id, e.g., <code>ja-1</code>, get the 2nd index value (arrays are 0-based in JSON).</p>
-<p>That value is expected to be an object, so return the value corresponding to the id field of that object. In more complex situations, the value of id might itself be an object or an array, which you could continue indexing like <code>[1].id.firstname</code>.</p>
-<p>You can walk an array by using <code>[$_index]</code> and varying the value of <code>$_index</code>. When you access an array element, you have to quote the text because it consists of multiple tokens to CS which breaks off <code>[</code> and <code>]</code>. If you are just accesing an object field of something, you can quote the string or just type it direct</p>
-<pre><code>^jsonpath(.id $object2)
-^jsonpath(&quot;.id&quot; $object2)</code></pre>
-<p>Of course you don't always have to start at the root. If you know what you want is going to become object 7 eventually, you could directly say .id given <code>jo-7</code> and the system would locate that and get the id field. Likewise if you know that key names are somehow unique, you could query for them directly using</p>
-<pre><code>^query(direct_v ? verbkey ?)</code></pre>
-<p>Or even if the key is not unique you can restrict matches to facts having the <code>JSON_OBJECT_FACT</code> flag.</p>
-<pre><code>^query(directflag_v ? verbkey ? 1 ? ? ? JSON_OBJECT_FACT)</code></pre>
-<p>Be aware that when <code>^jsonpath</code> returns the value of an object key, when the value is a simple word, it just returns the word without doublequotes (since CS just stores information as a single word). But if the value contains whitespace, or JSON special characters, that may mess up if you pass it to <code>^JSONFormat</code>. You can get <code>^jsonpath</code> to return dangerous data as a string with double quotes around it if you add a 3rd argument &quot;safe&quot; to the call.</p>
-<pre><code>^jsonpath(&quot;.name&quot; $_jsonobject safe)</code></pre>
-<h3 id="jsonpath"><code>^jsonpath</code></h3>
-<p>Can also return the actual factid of the match, instead of the object of the fact. This would allow you to see the index of a found array element, or the json object/array name involved. Or you could use ^revisefact to change the specific value of that fact (not creating a new fact). Just add * after your final path, eg</p>
-<pre><code>^jsonpath(.name* $$obj)
-^jsonpath(.name[4]* $$obj)</code></pre>
-<p>Correspondingly, if you are trying to dump all keys and values of a JSON object, you could do a query like this:</p>
-<pre><code>@0 = ^query(direct_s $_jsonobject ? ?)
-^loop()
-{
-    _0 = ^first(@0all)
-    and then you have _1 and _2 as key and value
-}</code></pre>
-<p>If you need to handle the full range of legal keys in json, you can use text string notation like this <code>^jsonpath(.&quot;st. helen&quot;.data $tmp)</code>.</p>
-<p>You may omit the leading . of a path and CS will by default assume it</p>
-<pre><code>^jsonpath(&quot;st. helen&quot;.data $tmp)</code></pre>
 <h2 id="direct-access-via-json-variables-myvar.field-and-myvar">Direct access via JSON variables <code>$myvar.field</code> and `$myvar[]</h2>
 <p>If a variable holds a JSON object value, you can directly set and get from fields of that object using dotted notation. This can be a fixed static fieldname you give or a user variable value or a match variable value (quoted or unquoted): <code>$myvar.$myfield</code> is legal, as is <code>$myvar._0</code> or <code>$myvar.'_0</code>.</p>
-<p>Dotted notation is cleaner and faster than <code>^jsonpath</code> and <code>jsonobjectinsert</code> and for get, has the advantage that it never fails, it only returns null if it can't find the field. If the path does not contain a json object at a level below the top, one will automatically be created on assignment, and have the same transient/permanent property as the immediately containing object. If the top level variable is not currently an object, assignment will fail. CS will not create an object for you because it doesn't know if it should be transient or permanent.</p>
+<p>Dotted notation is cleaner and faster than <code>^jsonpath</code> and <code>jsonobjectinsert</code> and for get, has the advantage that it never fails, it only returns null if it can't find the field. If the path does not contain a json object at a level below the top, one will automatically be created if trying to do assignment, and have the same transient/permanent property as the immediately containing object. If the top level variable is not currently an object, assignment will fail. CS will not create an object for you because it doesn't know if it should be transient or permanent.</p>
 <pre><code>$x = $$obj.name.value.data.side 
 $$obj.name.value.data.side = 7</code></pre>
 <p>Similarly you can access JSON arrays using array notation:</p>
@@ -194,9 +169,10 @@ $$obj.&#39;_0[4] += 3</code></pre>
 <pre><code>$x.foo[] = Bruce</code></pre>
 <p>If foo is currently undefined, the system will create a JSON array for you, with permanency that matches the JSON object of $x. You cannot do $x[] and have this happen because at the top level the system does not know what permanency to use. Once there is a JSON array in $x.foo, assignments with <code>foo[]</code> will add elements to the array. You cannot designate the index, it will be the next index in succession.</p>
 <p>You can also do</p>
-<pre><code>    $_array1 +=  $_array2 -- copies contents of array2 into array1
-    $_array1 += value -- adds value into array1</code></pre>
-<p>Adding an element to an array using these notations will automatically select DUPLICATE entries being legal. If you want the insertion to be unique, use ^jsonarrayinsert(UNIQUE xxx xxx).</p>
+<pre><code>    $_array1 +=  $_array2 # copies contents of array2 into array1
+    $_array1 += value     # adds value into array1</code></pre>
+<p>Adding an element to an array using these notations will automatically select DUPLICATE entries being legal. If you want the insertion to be unique, use ^jsonarrayinsert(UNIQUE xxx xxx) OR in your botmacro change the default by doing</p>
+<pre><code>   $cs_json_array_defaults = #JSON_ARRAY_UNIQUE </code></pre>
 <p>The only restriction on arrays is that you cannot add a new array index value without using ^jsonarrayinsert as you are not allowed to create discontiguous indices.</p>
 <p><strong>NOTE</strong> JSON is normally a non-recursive structure with no shared pointers. But ChatScript allows you to store references to JSON structures in multiple places of other JSON structures. This has its hazards. It presents no problem when transcribing to text for a website using <code>^jsonwrite</code> . And when you have something like this:</p>
 <pre><code>$x = ^jsoncreate(object)
@@ -211,24 +187,97 @@ $x.field = $y
 $y.field = $x
 $x.field = null</code></pre>
 <p>The two structures point to each other, each only once. So assigning null will kill off both structures.</p>
-<p>Assigning <code>null</code> will remove a JSON key entirely. Assigning <code>&quot;&quot;</code> <code>^&quot;&quot;</code> will set the field to the JSON literal <code>null</code>.</p>
+<p>Assigning <code>null</code> will remove a JSON key entirely. Assigning <code>&quot;&quot;</code> or <code>^&quot;&quot;</code> will set the field to the JSON literal <code>null</code>.</p>
+<h4 id="accessing-opposite-ends-of-json-structures">Accessing opposite ends of JSON structures</h4>
+<p>For an array, obviously $array[0] returns one end of the array, and you can get the index of The other end by doing</p>
+<pre><code>    $_tmp = ^length($array) - 1
+    $array[$_tmp]</code></pre>
+<p>But a convenient shortcut is</p>
+<pre><code>    $array[-1]</code></pre>
+<p>For objects, $object[0] returns the name of the most recent field added and $object[-1] returns the name of the first field added.</p>
+<h4 id="using-a-word-as-a-field-name-rather-than-as-indirection">using a $word as a field name rather than as indirection</h4>
+<p>Just escape the $.</p>
+<pre><code>$data.\$varname = hello </code></pre>
+<h3 id="jsonpath-string-id"><code>^jsonpath</code>( string id )</h3>
+<ul>
+<li><code>string</code> is a description of how to walk JSON.</li>
+<li><code>id</code> is the name of the node you want to start at (typically returned from <code>^jsonopen</code> or <code>^jsonparse</code>).</li>
+</ul>
+<p>Array values are accessed using typical array notation like <code>[3]</code> and object fields using dotted notation. A simple path access might look like this: <code>[1].id</code> which means take the root object passed as id, e.g., <code>ja-1</code>, get the 2nd index value (arrays are 0-based in JSON).</p>
+<p>That value is expected to be an object, so return the value corresponding to the id field of that object. In more complex situations, the value of id might itself be an object or an array, which you could continue indexing like <code>[1].id.firstname</code>.</p>
+<p>You can walk an array by using <code>[$_index]</code> and varying the value of <code>$_index</code>.</p>
+<p>When you access an array element, you have to quote the text because it consists of multiple tokens to CS which breaks off <code>[</code> and <code>]</code>. If you are just accesing an object field of something, you can quote the string or just type it directly</p>
+<pre><code>^jsonpath(.id $object2)
+^jsonpath(&quot;.id&quot; $object2)</code></pre>
+<p>Of course you don't always have to start at the root. If you know what you want is going to become object 7 eventually, you could directly say .id given <code>jo-7</code> and the system would locate that and get the id field. Likewise if you know that key names are somehow unique, you could query for them directly using</p>
+<pre><code>^query(direct_v ? verbkey ?)</code></pre>
+<p>Or even if the key is not unique you can restrict matches to facts having the <code>JSON_OBJECT_FACT</code> flag.</p>
+<pre><code>^query(directflag_v ? verbkey ? 1 ? ? ? JSON_OBJECT_FACT)</code></pre>
+<p>Be aware that when <code>^jsonpath</code> returns the value of an object key, when the value is a simple word, it just returns the word without doublequotes (since CS just stores information as a single word). But if the value contains whitespace, or JSON special characters, that may mess up if you pass it to <code>^JSONFormat</code>. You can get <code>^jsonpath</code> to return dangerous data as a string with double quotes around it if you add a 3rd argument &quot;safe&quot; to the call.</p>
+<pre><code>^jsonpath(&quot;.name&quot; $_jsonobject safe)</code></pre>
+<h3 id="jsonpath"><code>^jsonpath</code></h3>
+<p>Generally speaking the direct access methods are clearer than using this function.</p>
+<p>Can also return the actual factid of the match, instead of the object of the fact. This would allow you to see the index of a found array element, or the json object/array name involved. Or you could use ^revisefact to change the specific value of that fact (not creating a new fact). Just add * after your final path, eg</p>
+<pre><code>^jsonpath(.name* $$obj)
+^jsonpath(.name[4]* $$obj)</code></pre>
+<p>Correspondingly, if you are trying to dump all keys and values of a JSON object, you could do a query like this:</p>
+<pre><code>@0 = ^query(direct_s $_jsonobject ? ?)
+^loop()
+{
+    _0 = ^first(@0all)
+    and then you have _1 and _2 as key and value
+}</code></pre>
+<p>If you need to handle the full range of legal keys in json, you can use text string notation like this <code>^jsonpath(.&quot;st. helen&quot;.data $tmp)</code>.</p>
+<p>You may omit the leading . of a path and CS will by default assume it</p>
+<pre><code>^jsonpath(&quot;st. helen&quot;.data $tmp)</code></pre>
+<h3 id="jsonloopjsonstruct-var1-var2">^jsonloop($jsonstruct $var1 $var2)</h3>
+<p>This is like ^loop, but explicitly for json data. It is faster and cleaner than writing a loop. A normal loop might look like:</p>
+<pre><code>    $_count = ^length($_jsonarray)
+    ^loop($_count)
+    {
+        $_count -= 1
+        $_value =  $_jsonarray[$_count]
+        ...
+    }</code></pre>
+<p>And similarly for a JSON object one might want:</p>
+<pre><code>    $_count = ^length($_jsonobject)
+    ^loop($_count)
+    {
+        $_count -= 1
+        $_jsonfield = $_jsonobject[$_count]
+        $_value =  $_jsonobject.$_jsonfield
+        ...
+    }</code></pre>
+<p>But for large numbers of elements (eg a thousand +) this is ineffient because it has to search for each element each time. The efficient way is:</p>
+<pre><code>    ^jsonloop($_jsonobject $_field $_value)
+    {
+        ...
+    }</code></pre>
+<p>where the loop runs most recent entry to least recent, putting the field name in <code>$_field</code> and its value in <code>$_value</code>. Similarly for a jsonarray it does the index as <code>$_field</code> and <code>$_value</code> is its value.</p>
+<p>You can choose (or annotate) which way the loop runs by adding an optional 3rd argument OLD or NEW.</p>
+<pre><code>^jsonloop($_jsonarray $_index $_value OLD) will walk oldest first (i.e. index 0 and increasing).
+^jsonloop($_jsonarray $_index $_value NEW) will walk newest first (i.e. index max and decreasing).</code></pre>
 <h3 id="length-jsonid"><code>^length</code>( jsonid )</h3>
 <p>Returns the number of top-level members in a json array or object.</p>
 <h2 id="printing-json-structures">Printing JSON structures</h2>
 <h3 id="jsonwrite-name"><code>^jsonwrite</code>( name )</h3>
-<p>name is the name from a json fact set (either by <code>^jsonpart</code>, <code>^jsonopen</code>, orsome query into such structures). Result is the corresponding JSON string (as a website might emit), without any linefeeds.</p>
+<p>name is the name from a json fact set (either by <code>^jsonpart</code>, <code>^jsonopen</code>, or some query into such structures). The result is the corresponding JSON string (as a website might emit), without any linefeeds.</p>
 <h3 id="jsontree-name-depth"><code>^jsontree</code>( name {depth} )</h3>
 <p>name is the value returned by <code>^jsonparse</code> or <code>^jsonopen</code> or some query into such structures. It displays a tree of elements, one per line, where depth is represented as more deeply indented. Objects are marked with <code>{}</code> as they are in JSON. Arrays are marked with <code>[]</code>.</p>
-<p>The internal name of the composite is shown immediately next to its opening punctuation. Optional depth number restricts how deep it displays. 0 (default) means all. 1 is just top level.</p>
+<p>The internal name of the composite is shown immediately next to its opening punctuation. Optional depth number restricts how deep it displays. 0 (default) means all. 1 means just top level.</p>
 <h2 id="json-structure-manipulation">JSON structure manipulation</h2>
 <p>You can build up a JSON structure without using <code>^jsonparse</code> if you want to build it piece by piece. And you can edit existing structures.</p>
 <h3 id="jsoncreate-jsonflags-type"><code>^jsoncreate</code>( {JSONFLAGS} type )</h3>
-<p>Type is either array or object and a json composite with no content is created and its name returned. See <code>^jsonarrayinsert</code>, <code>^jsonobjectinsert</code>, and <code>^jsondelete</code> for how to manipulate it. See writeup earlier about optional json flags.</p>
+<p>Type is either <code>array</code> or <code>object</code> and a json composite with no content is created and its name returned. See <code>^jsonarrayinsert</code>, <code>^jsonobjectinsert</code>, and <code>^jsondelete</code> for how to manipulate it. See writeup earlier about optional json flags.</p>
 <h3 id="jsonarrayinsert-jsonflags-arrayname-value"><code>^jsonarrayinsert</code>( {JSONFLAGS} arrayname value )</h3>
 <p>Given the name of a json array and a value, it adds the value to the end of the array. See writeup earlier about optional json flags. If you use the flag unique then if value already exists in the array, no duplicate will be added.</p>
 <h3 id="jsonarraydelete-index-value-arrayname-value"><code>^jsonarraydelete</code>( [<code>INDEX</code>, <code>VALUE</code>] arrayname value )</h3>
-<p>This deletes a single entry from a JSON array. It does not damage the thing deleted, just its member in the array. * If the first argument is <code>INDEX</code>, then value is a number which is the array index (0 ... n-1). * If the first argument is <code>VALUE</code>, then value is the value to find and remove as the object of the json fact.</p>
-<p>You can delete every matching <code>VALUE</code> entry by adding the optional argument <code>ALL</code>. Like: <code>^jsonarraydelete(&quot;INDEX ALL&quot; $array 4)</code></p>
+<p>This deletes a single entry from a JSON array. It does not damage the thing deleted, just its member in the array.</p>
+<ul>
+<li>If the first argument is <code>INDEX</code>, then value is a number which is the array index (0 ... n-1).</li>
+<li>If the first argument is <code>VALUE</code>, then value is the value to find and remove as the object of the json fact.</li>
+</ul>
+<p>You can delete every matching <code>VALUE</code> entry by adding the optional argument <code>ALL</code>. Like: <code>^jsonarraydelete(&quot;VALUE ALL&quot; $array 4)</code></p>
 <p>If there are numbered elements after this one, then those elements immediately renumber downwards so that the array indexing range is contiguous.</p>
 <p>If the key has an existing value then if the value is a json object it will be recursively deleted provided its data is not referenced by some other fact (not by any variables). You can suppress this with the <code>SAFE</code> flag. <code>^jsonarraydelete(SAFE $obj $key)</code>.</p>
 <h3 id="jsonarraysize-name"><code>^jsonarraysize</code>( name )</h3>
@@ -259,7 +308,7 @@ This allows you to remove their transient flags or save them in the users perman
 <p>removes all json escape markers back to normal for possible printout to a user. This translates \n to newline, \r to carriage return, \t to tab, and \&quot; to a simple quote.</p>
 <h2 id="web-json">WEB JSON</h2>
 <h3 id="jsonopen-jsonflags-kind-url-postdata-header-timeout"><code>^jsonopen</code>( {JSONFLAGS} kind url postdata header {timeout})</h3>
-<p>this function queries a website and returns a JSON datastructure as facts. It uses the standard CURL library, so it's arguments and how to use them are generally defined by CURL documentation and the website you intend to access. See writeup earlier about optional json flag.</p>
+<p>this function queries a website and returns a JSON datastructure as facts. It uses the standard CURL library, so it's arguments and how to use them are generally defined by CURL documentation and the website you intend to access. See writeup earlier about optional json flags.</p>
 <table style="width:81%;">
 <colgroup>
 <col width="18%" />
@@ -310,7 +359,7 @@ $$user_agent = ^&quot;User-Agent: Mozilla/5.0 (compatible; MSIE 10.0; Windows NT
 ~User_Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:42.0) &quot;</code></pre>
 <p>ChatScript will make each line have a single space separator between line continuations. And JsonOpen will correctly get the header elements that do not include that spacing.</p>
 <p>The results are a collection of facts representing the JSON parse tree and the value of the function is the root JSON value. The JSON elements that can be represented are arrays, objects, JSON strings, and primitives (numbers, true, false, null). JSON arrays are named <code>ja-n</code> where <code>n</code> is a unique index. JSON objects are similarly named <code>jo-n</code>.</p>
-<p>Unlike JSON, which makes a distinction between primitives and strings, in ChatScript those things are all strings and are not quoted.So a JSON string like this:</p>
+<p>Unlike JSON, which makes a distinction between primitives and strings, in ChatScript those things are all strings and are not quoted. So a JSON string like this:</p>
 <pre><code>[ {&quot;id&quot;: 1 &quot;value&quot;: &quot;hello&quot;} {&quot;id&quot;: 2 &quot;value&quot;: &quot;bye&quot;} ]</code></pre>
 <p>returns this value: <code>ja-1</code> and these facts. The facts have flags on them which you can use in queries. You may not have any need to use these flags, so maybe you will just ignore their existence.</p>
 <table>
@@ -323,27 +372,27 @@ $$user_agent = ^&quot;User-Agent: Mozilla/5.0 (compatible; MSIE 10.0; Windows NT
 <tbody>
 <tr class="odd">
 <td>(ja-1 0 jo-1)</td>
-<td align="left">#JSON_ARRAY_FACT #JSON_OBJECT_VALUE</td>
+<td align="left">#<code>JSON_ARRAY_FACT</code> #<code>JSON_OBJECT_VALUE</code></td>
 </tr>
 <tr class="even">
 <td>(jo-1 id 1)</td>
-<td align="left">#JSON_OBJECT_FACT #JSON_PRIMITIVE_VALUE</td>
+<td align="left">#<code>JSON_OBJECT_FACT</code> #<code>JSON_PRIMITIVE_VALUE</code></td>
 </tr>
 <tr class="odd">
 <td>(jo-1 value hello)</td>
-<td align="left">#JSON_OBJECT_FACT #JSON_STRING_VALUE</td>
+<td align="left">#<code>JSON_OBJECT_FACT</code> #<code>JSON_STRING_VALUE</code></td>
 </tr>
 <tr class="even">
-<td>( ja-1 1 jo-2)</td>
-<td align="left">#JSON_ARRAY_FACT #JSON_OBJECT_VALUE</td>
+<td>(ja-1 1 jo-2)</td>
+<td align="left">#<code>JSON_ARRAY_FACT</code> <code>#JSON_OBJECT_VALUE</code></td>
 </tr>
 <tr class="odd">
 <td>(jo-2 id 2)</td>
-<td align="left">#JSON_OBJECT_FACT #JSON_PRIMITIVE_VALUE</td>
+<td align="left">#<code>JSON_OBJECT_FACT</code> #<code>JSON_PRIMITIVE_VALUE</code></td>
 </tr>
 <tr class="even">
 <td>(jo-2 value bye)</td>
-<td align="left">#JSON_OBJECT_FACT #JSON_STRING_VALUE</td>
+<td align="left">#<code>JSON_OBJECT_FACT</code> #<code>JSON_STRING_VALUE</code></td>
 </tr>
 </tbody>
 </table>
@@ -356,13 +405,13 @@ $$user_agent = ^&quot;User-Agent: Mozilla/5.0 (compatible; MSIE 10.0; Windows NT
 <p>On some other machines that doesn't install library stuff and maybe you need</p>
 <pre><code>sudo apt-get install libcurl3 libcurl3-gnutls libcurl4-openssl-dev</code></pre>
 <p>System variables <code>%httpresponse</code> will hold the most recent http return code from calling <code>^jsonopen</code>.</p>
-<p>If you call <code>^jsonopen(direct ...</code> then the result will not be facts, but the text will be directly shipped back as the answer. Be wary of doing this if the result will be large (&gt;30K?) since you will overflow your buffer without being checked.</p>
-<p>^JSONopen automatically url-encodes headers and urls</p>
+<p>If you call <code>^jsonopen(direct ...)</code> then the result will not be facts, but the text will be directly shipped back as the answer. Be wary of doing this if the result will be large (&gt;30K?) since you will overflow your buffer without being checked.</p>
+<p>^jsonopen automatically url-encodes headers and urls</p>
 <p>Note: CS blocks until the call is complete. On a production server if you expect that the call can take serious time, you are advised to send the request in OOB to your own additional layer which returns to CS immediately. Then it makes the call and when the call completes, makes a call back to CS with the results in OOB.</p>
 <h4 id="jsonopen-and-local-files"><code>JSONOpen and local files</code></h4>
-<p>JSONOpen is a wrapper around <code>Curl</code> library, so you can use as an url a local file reference like <code>file:///c:/myfile.txt</code>. The file, of course, should be a JSON text string.</p>
+<p>JSONOpen is a wrapper around the <code>Curl</code> library, so you can use as an url a local file reference like <code>file:///c:/myfile.txt</code>. The file, of course, should be a JSON text string.</p>
 <h4 id="jsonopen-and-proxy-servers"><code>JSONOpen and proxy servers</code></h4>
-<p>If you need JSONOpen to run thru a proxy server, these are the CS variables you need to set up: <code>$cs_proxycredentials</code> should be your login data, e.g. <code>myname:thesecret</code>. <code>$cs_proxyserver'  is the server address, e.g.,</code>http://local.example.com:1080`. '$cs_proxymethod' are bits listing the authorization method to use. They come from the LIBCURL so you should OR together the bits you want. Bit 1 is the most basic choice of name and password. Read- https://curl.haxx.se/libcurl/c/CURLOPT_HTTPAUTH.html</p>
+<p>If you need JSONOpen to run thru a proxy server, these are the CS variables you need to set up: <code>$cs_proxycredentials</code> should be your login data, e.g. <code>myname:thesecret</code>. <code>$cs_proxyserver</code> is the server address, e.g., <code>http://local.example.com:1080</code>. <code>$cs_proxymethod</code> are bits listing the authorization method to use. They come from the LIBCURL so you should OR together the bits you want. Bit 1 is the most basic choice of name and password. Read- https://curl.haxx.se/libcurl/c/CURLOPT_HTTPAUTH.html</p>
 <h2 id="json-out-of-band-output-data">JSON &amp; Out-of-band output data</h2>
 <p>Out-of-band data in ChatScript is signaled by the output beginning with data enclosed in <code>[]</code>. Which might be confusing, since JSON uses <code>[]</code> to denote an array. Standalone ChatScript contains a built-in handler for OOB data and if you pass it JSON at the start of output, it will swallow it and not display it (unless you turn on OOB display).</p>
 <p>Similarly, std webpage interfaces connecting to ChatScript do likewise. So if you want to see this information, you should put something in the output at the start which is NOT the JSON data. Anything will do. The only time you might actually need the JSON clean at the beginning is from some special purpose application, and in that case you will write your own OOB handler anyway (or not have one).</p>
@@ -376,18 +425,18 @@ $$user_agent = ^&quot;User-Agent: Mozilla/5.0 (compatible; MSIE 10.0; Windows NT
 <p>The facts have typing bits on them that describe the structure and arrays have index values that must remain consistent. Therefore you should not create and alter JSON fact structures using ordinary CS fact routines like <code>^createfact</code> and <code>^delete</code>. Instead use the JSON routines provided.</p>
 <h2 id="practical-examples">Practical Examples</h2>
 <h3 id="objects">Objects</h3>
-<p>The write jsonwrite and json tree print out different views of the same data..</p>
+<p>The write routines <code>jsonwrite</code> and <code>jsontree</code> print out different views of the same data..</p>
 <pre><code>u: (-testcase1) $_jsonObject = ^jsoncreate(object)
     ˆjsonobjectinsert( $_jsonObject name “some name” )
     ˆjsonobjectinsert( $_jsonObject phone “some number” )
     ˆjsonwrite ( $_jsonObject ) \n
     ^jsontree ( $_jsonObject )\n</code></pre>
-<p>Note in this next example how to escpe a json string with ^''. This makes creating json objects from static data very intuitive and clear.</p>
+<p>Note in this next example how to escape a json string with ^''. This makes creating json objects from static data very intuitive and clear.</p>
 <pre><code>u: (-testcase2) $_tmp = ^jsonparse( ^&#39;{name: &quot;Todd Kuebler&quot;, phone: &quot;555.1212&quot;}&#39; )
     ^jsonwrite( $_tmp ) \n
     ^jsontree( $_tmp ) \n
     name: $_tmp.name, phone: $_tmp.phone</code></pre>
-<p>This example shows the . notation access of data inside an json object in chatscript. This is probably the most intuitive way of interacting with the data.</p>
+<p>This example shows the . notation access of data inside a json object in chatscript. This is probably the most intuitive way of interacting with the data.</p>
 <pre><code>u: (-testcase3) $_tmp = ^jsoncreate(object)
     $_tmp.name = &quot;Todd Kuebler&quot;
     $_tmp.phone = &quot;555-1212&quot;
@@ -402,7 +451,6 @@ $$user_agent = ^&quot;User-Agent: Mozilla/5.0 (compatible; MSIE 10.0; Windows NT
     # create a phoneBook as an array of structured items (objects)
     $_phoneBook = ^jsoncreate(array)
 
-    #
     # add first object in the array
     #
     $_item = ^jsoncreate(object)
@@ -413,7 +461,6 @@ $$user_agent = ^&quot;User-Agent: Mozilla/5.0 (compatible; MSIE 10.0; Windows NT
 
     ^jsonarrayinsert($_phoneBook $_item)
 
-    #
     # add a second object in the array
     #
     $_item = ^jsoncreate(object)

@@ -4,8 +4,10 @@
 #include <mutex>
 static std::mutex mtx;
 #endif 
+char crashpath[MAX_WORD_SIZE];
 int loglimit = 0;
 int ide = 0;
+bool convertTabs = true;
 bool idestop = false;
 bool idekey = false;
 bool inputAvailable = false;
@@ -20,7 +22,7 @@ char* stackFree;
 char* infiniteCaller = "";
 char* stackStart;
 char* heapEnd;
-static bool infiniteStack = false;
+bool infiniteStack = false;
 bool userEncrypt = false;
 bool ltmEncrypt = false;
 unsigned long minHeapAvailable;
@@ -83,6 +85,8 @@ char currentFilename[MAX_WORD_SIZE];	// name of file being read
 // error recover 
 jmp_buf scriptJump[5];
 int jumpIndex = -1;
+jmp_buf linuxCrash;
+bool linuxCrashSet = false;
 
 unsigned int randIndex = 0;
 unsigned int oldRandIndex = 0;
@@ -215,13 +219,37 @@ void mystart(char* msg)
 		// print out all the frames to stderr
 		sprintf(word, (char*)"Fatal Error: signal code %d\n", signalcode);
 		Log(SERVERLOG, word);
-		FILE*fp = FopenUTF8WriteAppend(serverLogfileName);
+        Log(BUGLOG, word);
+
+        FILE*fp = FopenUTF8WriteAppend(serverLogfileName);
 		fseek(fp, 0, SEEK_END);
 		int fd = fileno(fp);
 		backtrace_symbols_fd(array, size, fd); //STDERR_FILENO);
 		fclose(fp);
-		// terminate program  
-		exit(signalcode);  
+
+        if (*crashpath) // a place outside the cs deploy, safe from redeployment
+        {
+            FILE*fp = FopenUTF8WriteAppend(crashpath);
+            if (fp)
+            {
+                fseek(fp, 0, SEEK_END);
+                int fd = fileno(fp);
+                backtrace_symbols_fd(array, size, fd); //STDERR_FILENO);
+                fclose(fp);
+                // less safe might crash
+                fp = FopenUTF8WriteAppend(crashpath);
+                fseek(fp, 0, SEEK_END);
+                BugBacktrace(fp);
+                fclose(fp);
+            }
+        }
+
+        if (linuxCrashSet) // attempt recovery
+        {
+            linuxCrashSet = false; // no crash loop
+            longjmp(linuxCrash, 1); 
+        }
+		else exit(signalcode);   // terminate program  
 	}
 
 	void setSignalHandlers () {
@@ -232,6 +260,7 @@ void mystart(char* msg)
 		// Handle relevant signals
 		if (sigaction(SIGSEGV, &sa, NULL) == -1) {
 			sprintf(word, (char*)"Error: cannot handle SIGSEGV");
+            Log(BUGLOG, word);
 			Log(SERVERLOG, word);
 		}
 		if (sigaction(SIGHUP, &sa, NULL) == -1) {
@@ -240,7 +269,8 @@ void mystart(char* msg)
 		}
 		if (sigaction(SIGINT, &sa, NULL) == -1) {
 			sprintf(word, (char*)"Error: cannot handle SIGINT");
-			Log(SERVERLOG, word);
+            Log(BUGLOG, word);
+            Log(SERVERLOG, word);
 		}
 		if (sigaction(SIGBUS, &sa, NULL) == -1) {
 			sprintf(word, (char*)"Error: cannot handle SIGBUS");
@@ -284,7 +314,7 @@ char* AllocateBuffer(char* name)
 		{
 			char word[MAX_WORD_SIZE];
 			sprintf(word,(char*)"Corrupt bufferIndex %d or overflowIndex %d\r\n",bufferIndex,overflowIndex);
-			Log(STDTRACELOG,(char*)"%s\r\n",word);
+			Log(STDUSERLOG,(char*)"%s\r\n",word);
 			ReportBug(word);
 			myexit(word);
 		}
@@ -300,20 +330,21 @@ char* AllocateBuffer(char* name)
 			}
 			overflowLimit++;
 			if (overflowLimit >= MAX_OVERFLOW_BUFFERS) ReportBug((char*)"FATAL: Out of overflow buffers\r\n");
-			Log(STDTRACELOG,(char*)"Allocated extra buffer %d\r\n",overflowLimit);
+			Log(STDUSERLOG,(char*)"Allocated extra buffer %d\r\n",overflowLimit);
 		}
 		buffer = overflowBuffers[overflowIndex++];
 	}
 	else if (bufferIndex > maxBufferUsed) maxBufferUsed = bufferIndex;
-	if (showmem) Log(STDTRACELOG,(char*)"Buffer alloc %d %s\r\n",bufferIndex,name);
+	if (showmem) Log(STDUSERLOG,(char*)"Buffer alloc %d %s %s\r\n",bufferIndex,name, releaseStackDepth[globalDepth]->name);
 	*buffer++ = 0;	//   prior value
 	*buffer = 0;	//   empty string
+
 	return buffer;
 }
 
 void FreeBuffer(char* name)
 {
-	if (showmem) Log(STDTRACELOG,(char*)"Buffer free %d %s\r\n",bufferIndex,name);
+	if (showmem) Log(STDUSERLOG,(char*)"Buffer free %d %s %s\r\n",bufferIndex,name, releaseStackDepth[globalDepth]);
 	if (overflowIndex) --overflowIndex; // keep the dynamically allocated memory for now.
 	else if (bufferIndex)  --bufferIndex; 
 	else ReportBug((char*)"Buffer allocation underflow")
@@ -835,9 +866,12 @@ size_t EncryptableFileWrite(void* buffer,size_t size, size_t count, FILE* file,b
 	if (userFileSystem.userEncrypt && encrypt) 
 	{
 		size_t msgsize = userFileSystem.userEncrypt(buffer,size,count,file,filekind); // can revise buffer
-		return userFileSystem.userWrite(buffer,1,msgsize,file);
+        size = 1;
+        count = msgsize;
 	}
-	else return userFileSystem.userWrite(buffer,size,count,file);
+    size_t wrote = userFileSystem.userWrite(buffer,size,count,file);
+    if (wrote != count && dieonwritefail) myexit("UserTopic Write failed");
+    return wrote;
 }
 
 void CopyFile2File(const char* newname,const char* oldname, bool automaticNumber)
@@ -930,14 +964,14 @@ void C_Directories(char* x)
 	if (bytes >= 0) 
 	{
 		word[bytes] = 0;
-		Log(STDTRACELOG,(char*)"execution path: %s\r\n",word);
+		Log(STDUSERLOG,(char*)"execution path: %s\r\n",word);
 	}
 
-	if (GetCurrentDir(word, MAX_WORD_SIZE)) Log(STDTRACELOG,(char*)"current directory path: %s\r\n",word);
+	if (GetCurrentDir(word, MAX_WORD_SIZE)) Log(STDUSERLOG,(char*)"current directory path: %s\r\n",word);
 
-	Log(STDTRACELOG,(char*)"readPath: %s\r\n",readPath);
-	Log(STDTRACELOG,(char*)"writeablePath: %s\r\n",writePath);
-	Log(STDTRACELOG,(char*)"untouchedPath: %s\r\n",staticPath);
+	Log(STDUSERLOG,(char*)"readPath: %s\r\n",readPath);
+	Log(STDUSERLOG,(char*)"writeablePath: %s\r\n",writePath);
+	Log(STDUSERLOG,(char*)"untouchedPath: %s\r\n",staticPath);
 }
 
 void InitFileSystem(char* untouchedPath,char* readablePath,char* writeablePath)
@@ -1455,9 +1489,9 @@ uint64 ElapsedMilliseconds()
     FILETIME t; // 100 - nanosecond intervals since midnight Jan 1, 1601.
     GetSystemTimeAsFileTime(&t);
     uint64 x = (LONGLONG)t.dwLowDateTime + ((LONGLONG)(t.dwHighDateTime) << 32LL);
-    x /= 10000; // 100-nanosecond intervals in a millisecond
     x -= 116444736000000000LL; //  unix epoch  Jan 1, 1970.
-    count = x;
+	x /= 10000; // 100-nanosecond intervals in a millisecond
+	count = x;
 #elif IOS
 	struct timeval x_time; 
 	gettimeofday(&x_time, NULL); 
@@ -1676,7 +1710,8 @@ void BugBacktrace(FILE* out)
 		fprintf(out,"BugDepth %d: heapusedOnEntry: %d buffers:%d stackused: %d %s ",
 			i,frame->heapDepth,GetCallFrame(i)->memindex,
             (int)(heapFree - (char*)releaseStackDepth[i]), frame->label);
-		if (!TraceFunctionArgs(out, frame->label, GetCallFrame(i-1)->argumentStartIndex, GetCallFrame(i - 1)->argumentStartIndex)) fprintf(out, " - %s", rule);
+        CALLFRAME* priorFrame = GetCallFrame(i - 1);
+		if (!TraceFunctionArgs(out, frame->label, priorFrame->argumentStartIndex, priorFrame->argumentStartIndex)) fprintf(out, " - %s", rule);
 		fprintf(out, "\r\n");
 	}
 }
@@ -1706,13 +1741,14 @@ CALLFRAME* ChangeDepth(int value,char* name,bool nostackCutback, char* code)
             if (result) abort = true;
         }
 #endif
+        if (frame->memindex != bufferIndex)
+        {
+            ReportBug((char*)"depth %d not closing bufferindex correctly at %s bufferindex now %d was %d\r\n", globalDepth, name, bufferIndex, frame->memindex);
+            bufferIndex = frame->memindex; // recover release
+        }
         frame->name = NULL;
         frame->rule = NULL;
         frame->label = NULL;
-		if (frame->memindex  != bufferIndex)
-		{
-			ReportBug((char*)"depth %d not closing bufferindex correctly at %s bufferindex now %d was %d\r\n",globalDepth,name,bufferIndex,frame->memindex);
-		}
         callArgumentIndex = frame->argumentStartIndex;
         currentRuleID = frame->oldRuleID;
         currentTopicID = frame->oldTopic;
@@ -1905,13 +1941,13 @@ static FILE* rotateLogOnLimit(char *fname,char* directory) {
 
 unsigned int Log(unsigned int channel,const char * fmt, ...)
 {
-	if (channel == STDTRACELOG) channel = STDUSERLOG;
+	if (channel == STDUSERLOG) channel = STDUSERLOG;
 	static unsigned int id = 1000;	
 	if (quitting) return id;
 	logged = true;
 	bool localecho = false;
 	bool noecho = false;
-	if (channel == ECHOSTDTRACELOG)
+	if (channel == ECHOSTDUSERLOG)
 	{
 		localecho = true;
 		channel = STDUSERLOG;
@@ -1925,7 +1961,6 @@ unsigned int Log(unsigned int channel,const char * fmt, ...)
 		channel = STDTRACETABLOG;
 	}
 	// allow user logging if trace is on.
-	if (!userLog && (channel == STDUSERLOG || channel > 1000 || channel == id) && !testOutput && !trace) return id;
     if (!fmt)  return id; // no format or no buffer to use
 	if ((channel == SERVERLOG) && server && !serverLog)  return id; // not logging server data
 
@@ -1950,11 +1985,11 @@ unsigned int Log(unsigned int channel,const char * fmt, ...)
 		at += 4;
 	}
 	//   any channel above 1000 is same as 101
-	else if (channel > 1000) channel = STDTRACELOG; //   force result code to indent new line
+	else if (channel > 1000) channel = STDUSERLOG; //   force result code to indent new line
 
 	//   channels above 100 will indent when prior line not ended
-	if (channel != BUGLOG && channel >= STDTRACELOG && logLastCharacter != '\\') //   indented by call level and not merged
-	{ //   STDTRACELOG 101 is std indending characters  201 = attention getting
+	if (channel != BUGLOG && channel >= STDTIMELOG && logLastCharacter != '\\') //   indented by call level and not merged
+	{ //   STDUSERLOG 101 is std indending characters  201 = attention getting
 		if (logLastCharacter == 1 && globalDepth == priordepth) {} // we indented already
 		else if (logLastCharacter == 1 && globalDepth > priordepth) // we need to indent a bit more
 		{
@@ -2070,6 +2105,8 @@ unsigned int Log(unsigned int channel,const char * fmt, ...)
 	}
 	else if (!strnicmp(logmainbuffer,(char*)"*** Error",9))
 		pendingError = true;// replicate for easy dump later
+    if (!userLog && (channel == STDUSERLOG || channel > 1000 || channel == id) && !testOutput && !trace) return id;
+    // trace on for no user log will go to server log
 
 #ifndef DISCARDSERVER
 #ifndef EVSERVER
@@ -2094,11 +2131,11 @@ unsigned int Log(unsigned int channel,const char * fmt, ...)
 			if (*currentFilename) fprintf(bug,(char*)"BUG in %s at %d: %s ",currentFilename,currentFileLine,readBuffer);
 			if (!compiling && !loading && channel == BUGLOG && *currentInput)  
 			{
-				char* buffer = AllocateBuffer(); // transient - cannot insure not called from context of InfiniteStack
+				char* buffer = AllocateBuffer("bugwrite"); // transient - cannot insure not called from context of InfiniteStack
 				struct tm ptm;
 				if (buffer) fprintf(bug,(char*)"\r\nBUG: %s: input:%d %s caller:%s callee:%s at %s in sentence: %s\r\n",GetTimeInfo(&ptm,true),volleyCount, logmainbuffer,loginID,computerID,located,currentInput);
 				else fprintf(bug,(char*)"\r\nBUG: %s: input:%d %s caller:%s callee:%s at %s\r\n",GetTimeInfo(&ptm,true),volleyCount, logmainbuffer,loginID,computerID,located);
-				FreeBuffer();
+				FreeBuffer("bugwrite");
 			}
 			fwrite(logmainbuffer,1,bufLen,bug);
 			fprintf(bug,(char*)"\r\n");
@@ -2109,7 +2146,6 @@ unsigned int Log(unsigned int channel,const char * fmt, ...)
 				BugBacktrace(bug);
 			}
 			fclose(bug); // dont use FClose
-
 		}
 		if ((echo||localecho) && !silent && !server)
 		{
@@ -2136,7 +2172,7 @@ unsigned int Log(unsigned int channel,const char * fmt, ...)
 			}
 			myexit(logmainbuffer); // log fatalities anyway
 		}
-		channel = STDUSERLOG;	//   use normal logging as well
+        if (userLog) channel = STDUSERLOG;	//   use normal logging as well
 	}
 
 	if (server){} // dont echo  onto server console 
@@ -2150,7 +2186,7 @@ unsigned int Log(unsigned int channel,const char * fmt, ...)
     FILE* out = NULL;
 	if (server && trace && !userLog) channel = SERVERLOG;	// force traced server to go to server log since no user log
 	char fname[MAX_WORD_SIZE];
-    if (logFilename[0] != 0 && channel != SERVERLOG && channel != DBTIMELOG)  
+    if (logFilename[0] != 0 && channel != SERVERLOG && channel != BUGLOG && channel != DBTIMELOG)  
 	{
 		strcpy(fname, logFilename);
 		char defaultlogFilename[MAX_BUFFER_SIZE];
@@ -2168,7 +2204,7 @@ unsigned int Log(unsigned int channel,const char * fmt, ...)
 		strcpy(fname, dbTimeLogfileName); // one might speed up forked servers by having mutex per pid instead of one common one
         out = rotateLogOnLimit(fname,logs);
  	}
-    else // do server log 
+    else if (channel != BUGLOG)// do server log 
 	{
 		strcpy(fname, serverLogfileName); // one might speed up forked servers by having mutex per pid instead of one common one
         out = rotateLogOnLimit(fname, logs);

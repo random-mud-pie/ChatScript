@@ -1,6 +1,6 @@
 # ChatScript Command Line Parameters
 Copyright Bruce Wilcox, gowilcox@gmail.com www.brilligunderstanding.com<br>
-<br>Revision 2/12/2019 cs9.1
+<br>Revision 6/3/2019 cs9.41
 
 # Command Line Parameters
 
@@ -13,12 +13,14 @@ Additional command line parameters, configheader=xxx, can be included to define 
 If there are several headers then use separate configheader=xxx configheader=yyy etc parameters for each header name/value pair.
 
 Config file data are command line parameters, 1 per line, like below:
+
 ```
 noboot 
 port=20
 ```
+
 Some parameters require a value and use the `=` format with no spaces. Other parameters
-may only require you name the parameter (they have no choices of values).s
+may only require you name the parameter (they have no choices of values).
 
 Actual command line parameters have priority over config file values, and those have priority over http requested values.
 
@@ -26,7 +28,7 @@ Actual command line parameters have priority over config file values, and those 
 ## Memory options
 
 Chatscript statically allocates its memory and so (barring unusual circumstance) will not
-allocate memory every during its interactions with users. These parameters can control
+allocate memory ever during its interactions with users. These parameters can control
 those allocations. Done typically in a memory poor environment like a cellphone.
 
 | option       | description
@@ -98,6 +100,7 @@ so that the system can do complete logs. You are welcome to set log size lots sm
 |`userlog`      | Store a user-bot log in USERS directory (default)
 |`nouserlog`    | Don't store a user-bot log
 |`tmp=xxx`     | name relative or absolute path to where you want the TMP folder to be. Do not add trailing `/`
+|`crashpath=xxx`     | file to write about fatal Linux signals that will be outside of the cs folder `/`
 
 ## Execution options
 | option           | description
